@@ -1,7 +1,7 @@
 *++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-* Copyright (C) 2000-2020 Energy Technology Systems Analysis Programme (ETSAP)
+* Copyright (C) 2000-2024 Energy Technology Systems Analysis Programme (ETSAP)
 * This file is part of the IEA-ETSAP TIMES model generator, licensed
-* under the GNU General Public License v3.0 (see file LICENSE.txt).
+* under the GNU General Public License v3.0 (see file NOTICE-GPLv3.txt).
 *=============================================================================*
 * EQMAIN.MOD declarations & call for actual equations                         *
 *   %1 - mod or v# for the source code to be used                             *
@@ -43,7 +43,7 @@ $   BATINCLUDE eqactflo.%1
 *-----------------------------------------------------------------------------
 * Bound of vintage process activity or TS-level above PRC_TS
 *-----------------------------------------------------------------------------
-*V0.5b 980902 - avoid equations if LO=0/UP=INF
+*V0.5b avoid equations if LO=0/UP=INF
 $   BATINCLUDE eqactbnd.%1 G LO "(ACT_BND(R,T,P,S,'LO') NE 0)"
 $   BATINCLUDE eqactbnd.%1 E FX YES
 $   BATINCLUDE eqactbnd.%1 L UP "(ACT_BND(R,T,P,S,'UP') NE INF)"
@@ -148,7 +148,7 @@ $   BATINCLUDE eqire.%1
 *-----------------------------------------------------------------------------
 * Bound on exchange between internal regions
 *-----------------------------------------------------------------------------
-*V0.5b 980902 - avoid equations if LO=0/UP=INF
+*V0.5b avoid equations if LO=0/UP=INF
 $   BATINCLUDE eqirebnd.%1 G LO "(IRE_BND(R,T,C,S,ALL_REG,IE,'LO') NE 0)"
 $   BATINCLUDE eqirebnd.%1 E FX YES
 $   BATINCLUDE eqirebnd.%1 L UP "(IRE_BND(R,T,C,S,ALL_REG,IE,'UP') NE INF)"
@@ -194,29 +194,37 @@ $   BATINCLUDE eqbndcst.%1
 *-----------------------------------------------------------------------------
 * User-constraints
 *-----------------------------------------------------------------------------
-* Commissioning periods
+$ IFE CARD(UC_TIME)+CARD(UC_UCN)>0 $SETGLOBAL VAR_UC YES
+* Commissioning periods for UCs
   SET RVPT(R,ALLYEAR,P,T);
-  LOOP(OBJ_2A(R,T,P)$(NOT RTP_OFF(R,T,P)),F=B(T)+NCAP_ILED(R,T,P); Z=SUM(VNT(T,TT)$(F GT E(TT)+0.5),1);
+  LOOP(OBJ_2A(R,T,P)$(NOT RTP_OFF(R,T,P)),F=B(T)+NCAP_ILED(R,T,P); Z=SUM(VNT(T,TT)$(F>E(TT)+0.5),1);
     RVPT(R,T,P,T+Z) = YES);
   RTP_OFF(OBJ_2A(R,T,P))$(NOT SUM(RVPT(R,T,P,TT),1)) = YES;
 *-----------------------------------------------------------------------------
 * Define a map for region and milestone year specific user constraints to be generated
-$IF '%VAR_UC%'==YES $SETLOCAL UCBD '' SETLOCAL UCLIM ',LIM'
-$IF NOT '%VAR_UC%'==YES $SETLOCAL UCBD ',BD' SETLOCAL UCLIM ',BD'
- SET UC_RHSMAP(UC_N,UC_NUMBER,UC_NUMBER,REG,T,S%UCBD%);
+$SETLOCAL UCBD '' SETLOCAL UCLIM ',LIM' SETLOCAL TMP '' SETLOCAL TAKE
+$IF NOT '%VAR_UC%'==YES $SETLOCAL UCBD ',BD' SETLOCAL UCLIM ',BD' SETLOCAL TMP ',LIM' SETLOCAL TAKE UC_RHSRT(R,UC_N,T,BD)$
+ SET UC_RHSTMP(REG,UC_N,T,S%UCBD%,UC_NUMBER);
+ SET UC_RHSMAP(REG,T,UC_N,UC_NUMBER,S%UCBD%);
+ SET RUCTS(ALL_REG,UC_N,ALLYEAR,TS%TMP%);
+ SET UC_UT(UC_N,ALLYEAR%TMP%), UC_UTS(UC_N,ALLYEAR,TS%TMP%);
  SET UC_TMAP(YEAR,YEAR,T,SIDE,UC_DYNT);
  UC_TMAP(T,TT(T-DIAG(SIDE,'RHS')),TT,SIDE,'N') = YES;
  UC_TMAP(T,TT(T-DIAG(SIDE,'RHS')),MILESTONYR,SIDE,'CUMSUM')$(ORD(T) > ORD(MILESTONYR)+DIAG(SIDE,'RHS')) = YES;
  UC_TMAP(T,T,T,'RHS','SYNC') = YES;
  UC_TMAP(T,T,TT,'RHS','CUM+')$UC_TMAP(T,T,TT,'LHS','CUMSUM') = YES;
- LOOP((UC_R_EACH(R,UC_N),T%UCLIM%)$UC_RHSRT(R,UC_N,T%UCLIM%),
-  IF(    SUM(UC_TS_SUM(R,UC_N,S),1)$UC_T_EACH(R,UC_N,T),UC_RHSMAP(UC_N,'EACH','SEVERAL',R,T,ANNUAL%UCBD%) = YES;
-  ELSEIF SUM(UC_TS_SUM(R,UC_N,S),1)$UC_T_SUCC(R,UC_N,T),UC_RHSMAP(UC_N,'SUCC','SEVERAL',R,T,ANNUAL%UCBD%) = YES;
- ));
- LOOP((UC_R_EACH(R,UC_N),T,S%UCLIM%)$UC_RHSRTS(R,UC_N,T,S%UCLIM%),
-  IF(    UC_TS_EACH(R,UC_N,S)$UC_T_EACH(R,UC_N,T),UC_RHSMAP(UC_N,'EACH','EACH',R,T,S%UCBD%) = YES;
-  ELSEIF UC_TS_EACH(R,UC_N,S)$UC_T_SUCC(R,UC_N,T),UC_RHSMAP(UC_N,'SUCC','EACH',R,T,S%UCBD%) = YES;
- ));
+ IF(CARD(UC_RHSRT), OPTION R_UCT < UC_RHSRT, R_UC < UC_TS_SUM;
+   UC_RHSTMP(R_UCT(R_UC(R,UC_N),T),ANNUAL%UCBD%,'SEVERAL')$(%TAKE%UC_T_EACH(R,UC_N,T)) = YES;
+   UC_RHSTMP(R_UCT(R_UC(R,UC_N),T),ANNUAL%UCBD%,'DYNAMIC')$(%TAKE%UC_T_SUCC(R,UC_N,T)) = YES;
+   OPTION CLEAR=R_UC,CLEAR=R_UCT;
+ );
+ IF(CARD(UC_RHSRTS), OPTION RUCTS < UC_RHSRTS;
+   UC_RHSTMP(RUCTS(UC_T_EACH(UC_R_EACH(R,UC_N),T),S%UCBD%),'EACH')$UC_TS_EACH(R,UC_N,S) = YES;
+   UC_RHSTMP(RUCTS(UC_T_SUCC(UC_R_EACH(R,UC_N),T),S%UCBD%),'SUCC')$UC_TS_EACH(R,UC_N,S) = YES;
+   UC_RHSTMP(RUCTS(UC_T_EACH(UC_R_EACH(R,UC_N),T),S%UCBD%),UC_NUMBER(TSL))$(TS_GROUP(R,TSL,S)$UC_DS(R,UC_N,TSL)) = YES;
+ );
+ OPTION UC_RTSUC < UC_T_SUCC, UC_RHSMAP < UC_RHSTMP, UC_UT < UC_RHST, UC_UTS < UC_RHSTS, CLEAR=UC_RHSTMP, CLEAR=RUCTS;
+
 *-----------------------------------------------------------------------------
 $   BATINCLUDE equcwrap.%1 E BD '' SUM(BD$ ,1) NOT
 $   BATINCLUDE equcwrap.%1 E "'FX'" ",'FX'"

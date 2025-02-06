@@ -1,19 +1,20 @@
 *++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-* Copyright (C) 2000-2023 Energy Technology Systems Analysis Programme (ETSAP)
+* Copyright (C) 2000-2024 Energy Technology Systems Analysis Programme (ETSAP)
 * This file is part of the IEA-ETSAP TIMES model generator, licensed
-* under the GNU General Public License v3.0 (see file LICENSE.txt).
+* under the GNU General Public License v3.0 (see file NOTICE-GPLv3.txt).
 *=============================================================================*
-* PPM_EXT.xtd oversees extended preprocessor activities
+* PPM_EXT.VDA oversees extended preprocessor activities
 *   %1 - mod or v# for the source code to be used
 *=============================================================================*
 * Questions/Comments:
 *-----------------------------------------------------------------------------
-  DISPLAY 'VEDA PPM_EXT Invoked';
-$IF DEFINED GR_VARGEN $BATINCLUDE resloadc.vda COEF
-  OPTION RP_UPL<ACT_UPS; RP_UPL(RP,L)$(NOT PRC_CAP(RP)*RP_STD(RP)) = NO;
+  DISPLAY 'PPM_EXT Invoked';
+$ IF DEFINED GR_VARGEN $BATINCLUDE resloadc.vda COEF
+  OPTION RP_UPL < ACT_UPS;
+  RP_UPL(RP,L)$(NOT PRC_CAP(RP)*RP_STD(RP)) = NO;
   RP_PL(R,P,LNX) $= SUM(V$ACT_LOSPL(R,V,P,'FX'),1);
 *-----------------------------------------------------------------------------
-* Prepare FLO_SUMs for emissions
+* Prepare FLO_SUMs for VDA_EMCB emissions
   FS_EMCB(RP_IRE(R,P),COM,C) = NO;
   OPTION FSCK <= FLO_SUM;
   FLO_SUM(RTP(R,V,P),COM,C,COM,S)$((NOT FLO_SUM(RTP,COM,C,COM,S))$RPCS_VAR(R,P,C,S)$FS_EMCB(R,P,COM,C)) = VDA_EMCB(R,V,C,COM);
@@ -21,14 +22,14 @@ $IF DEFINED GR_VARGEN $BATINCLUDE resloadc.vda COEF
 *-----------------------------------------------------------------------------
 * Auxiliary flow variable can be replaced by term (source flow x coefficient)
   CG_GRP(R,P,C,COM)$FSCK(R,P,C,COM,C) = YES;
-  CG_GRP(FS_EMCB(R,P,COM,C)) = YES;
-  TRACKPG(RPC(RP_FLO(RP),C)) $= SUM(CG_GRP(RP,C,COM),1);
+  CG_GRP(FS_EMCB) = YES;
+  TRACKPG(RPC(RP_FLO,C)) $= SUM(CG_GRP(RPC,COM),1);
   TRACKPG(RPC_PG) = NO; TRACKPG(RPC_FFUNC) = NO; TRACKPG(RPC_EMIS) = NO;
   LOOP(CG_GRP(R,P,C,COM)$RPC_EMIS(R,P,COM),TRACKPG(R,P,C)=NO);
-  FS_EMIS(CG_GRP(TRACKPG(R,P,COM),C),COM) = YES;
+  FS_EMIS(CG_GRP(TRACKPG(R,P,C),COM),C) = YES;
 * Prevent reduction of source commodity if target reduced
-  OPTION TRACKPC < FS_EMIS; TRACKPG(TRACKPC) = NO;
-  OPTION CLEAR=CG_GRP, CLEAR=TRACKPC, CLEAR=FS_EMCB, CLEAR=FSCK;
+  OPTION FS_EMIT < FS_EMIS, TRACKPC < FS_EMIS; TRACKPG(TRACKPC) = NO;
+  OPTION CLEAR=CG_GRP, CLEAR=TRACKPC, CLEAR=FS_EMIS, CLEAR=FS_EMCB, CLEAR=FSCK;
 *-----------------------------------------------------------------------------
 * ACT_EFF preparation, inheritance and aggregation
   TRACKPC(RPC_ACE(RPC)) = YES;
@@ -53,9 +54,8 @@ $IF DEFINED GR_VARGEN $BATINCLUDE resloadc.vda COEF
   RPG_ACE(RXX(R,P,CG),IO--1)$RP_INOUT(R,P,IO) = YES;
 * Set default ACT_EFF for group to 1 if none specified
   LOOP(IO,ACT_EFF(RTP(R,V,P),CG,ANNUAL)$((ACT_EFF(RTP,CG,ANNUAL)=0)$RPG_ACE(R,P,CG,IO)) = 1);
-  OPTION CLEAR=TRACKP,CLEAR=TRACKPC;
 *---------------------------
-$ BATINCLUDE PP_ACTEF.%1 LVL
+$ BATINCLUDE pp_actef.%1 LVL
 *-----------------------------------------------------------------------------
 * Catch shape indexes for shadow group
   IF(CARD(FLO_FUNCX),
@@ -64,9 +64,9 @@ $ BATINCLUDE PP_ACTEF.%1 LVL
   FLO_FUNCX(R,V,P,CG,ACTCG)$(ACTCG(CG)+RP_GRP(R,P,CG)) = 0;
   FLO_FUNCX(R,V,P,CG,CG2)$RP_PG(R,P,CG) $= FLO_FUNCX(R,V,P,%PGPRIM%,CG2));
 * Ensure that ACT_EFF modeled flows are not reduced:
-  LOOP(RPG_ACE(R,P,CG,IO), TRACKP(R,P) = YES);
-  LOOP(RPCG_PTRAN(TRACKP(R,P),COM1,COM2,CG1,CG2)$(RPC_ACE(R,P,COM1)+RPC_ACE(R,P,COM2)),RPCC_FFUNC(R,P,CG1,CG2) = NO);
-  RPCG_PTRAN(TRACKP(R,P),COM1,COM2,CG1,CG2)$(NOT RPCC_FFUNC(R,P,CG1,CG2)) = NO;
+  OPTION TRACKP < RPG_ACE;
+  LOOP(RPCG_PTRAN(TRACKP(R,P),C,COM,CG,CG2)$(RPC_ACE(R,P,C)+RPC_ACE(R,P,COM)),RPCC_FFUNC(R,P,CG,CG2) = NO);
+  RPCG_PTRAN(TRACKP,C,COM,CG,CG2)$(NOT RPCC_FFUNC(TRACKP,CG,CG2)) = NO;
   RPC_FFUNC(RPC_ACE(R,P,C)) = NO;
   RPC_NOFLO(RPC_ACE(R,P,C)) = NO;
   TRACKP(RP_PGFLO) = NO;
@@ -83,7 +83,11 @@ $IF NOT DEFINED RP_FFSGG $GOTO DONEFUNC
 $LABEL DONEFUNC
 *-----------------------------------------------------------------------------
 * Add singleton ACT_EFFs to RPC_FFUNC
-  OPTION TRACKPC < RPG_1ACE; RPC_NOFLO(TRACKPC) = NO;
+  OPTION TRACKPC < RPG_1ACE; RPC_NOFLO(TRACKPC) = NO; PUTGRP=0;
+  LOOP(TRACKPC(KEEP_FLOF(R,P,C)),
+   IF(RPC_FFUNC(R,P,C)+TRACKPG(R,P,C),RPG_1ACE(R,P,CG,C) = NO; ELSE
+$   BATINCLUDE pp_qaput.mod PUTOUT PUTGRP 01 'ACT_EFF shadow group contains only an auxiliary flow'
+    PUT ' WARNING       - ACT_EFF is applied to the auxiliary flow: R.P.C= 'TRACKPC.TE(TRACKPC)));
   TRACKPC(KEEP_FLOF) = NO; PUTGRP=0;
   LOOP(RPC_FFUNC(TRACKPC),
 $   BATINCLUDE pp_qaput.mod PUTOUT PUTGRP 09 'Inconsistent/spurious process transformation parameters'
@@ -92,13 +96,14 @@ $   BATINCLUDE pp_qaput.mod PUTOUT PUTGRP 09 'Inconsistent/spurious process tran
   TRACKPG(RPC_ACE) = NO; TRACKPG(TRACKPC) = NO;
   RPC_EMIS(TRACKPG)=YES; RPCC_FFUNC(TRACKPG(RP,C),C) = YES;
 $IF NOT %REDUCE%==YES OPTION CLEAR=TRACKPC;
-  OPTION KEEP_FLOF < RPC_FFUNC; TRACKPC(RP_SGS,C) = NO; RPC_FFUNC(TRACKPC) = YES;
+  OPTION KEEP_FLOF < RPC_FFUNC; TRACKPC(RP_SGS,C) = NO;
+  RPC_FFUNC(TRACKPC)$(NOT RPC_ACE(TRACKPC)) = YES;
   OPTION CLEAR=RP_GRP,CLEAR=TRACKPC,CLEAR=TRACKPG;
 *-----------------------------------------------------------------------------
 * Prepare commodity-specific availability factors
-  SET RPG_AFCX(R,P,C,IE); OPTION RP_GRP<NCAP_AFC;
+  SET RPG_AFCX(R,P,C,IE); OPTION RP_GRP<NCAP_AFC, RP_XRED<RP_GRP;
   RP_GRP(RP_PG(R,P,CG))$(NOT C(CG)+COM_TYPE(CG)) = NO;
-  PRC_SC(RP_STG(RP))$SUM(RP_GRP(RP,CG),1)=SUM(PRC_TSL(RP,TSL),LOG(G_CYCLE(TSL)));
+  PRC_SC(RP_STG(RP_XRED(RP)))=SUM(PRC_TSL(RP,TSL),LOG(G_CYCLE(TSL)));
   LOOP(TSL(STL),NCAP_AFCS(R,LL,P,CG,S)$TS_GROUP(R,TSL,S) $= NCAP_AFC(R,LL,P,CG,STL)$RP_GRP(R,P,CG));
   NCAP_AFCS(R,LL,P,CG,S(STL))$RP_GRP(R,P,CG) $= NCAP_AFC(R,LL,P,CG,STL); OPTION CLEAR=NCAP_AFC;
   NCAP_AFCS(R,LL,P,CG,S)$(NOT PRC_CAP(R,P))=0;

@@ -1,7 +1,7 @@
 *++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-* Copyright (C) 2000-2022 Energy Technology Systems Analysis Programme (ETSAP)
+* Copyright (C) 2000-2024 Energy Technology Systems Analysis Programme (ETSAP)
 * This file is part of the IEA-ETSAP TIMES model generator, licensed
-* under the GNU General Public License v3.0 (see file LICENSE.txt).
+* under the GNU General Public License v3.0 (see file NOTICE-GPLv3.txt).
 *=============================================================================*
 * PREPRET.dsc oversees pre-processing for retirements
 *=============================================================================*
@@ -42,53 +42,20 @@ $IF %MIP% INTEGER
   VARIABLE %VAR%_DRCAP(R,ALLYEAR,LL,P%SWD%,J);
   EQUATION %EQ%_DSCRET(R,ALLYEAR,ALLYEAR,P%SWTD%);
 * Maps for refit vintages & types
-  LOOP(PRC_RCAP(R,PRC), F=0; CNT=EPS;
-   LOOP(P$PRC_REFIT(R,PRC,P),Z=PRC_REFIT(R,PRC,P);
-    IF(ABS(Z)>1, F=F+1); CNT$CNT=CNT+1;
+  PRC_RCAP(PRC_RCAP(RP)) = PRC_CAP(RP);
+  LOOP(PRC_RCAP(R,PRC), F=0; MY_F=0; CNT=EPS;
+   LOOP(P$PRC_REFIT(R,PRC,P),Z=PRC_REFIT(R,PRC,P); CNT$CNT=CNT+1;
+    IF(ABS(Z)>2, F=F+1); IF(MOD(Z,2)=0,MY_F$(ABS(Z)-4)=3);
     IF(Z<0,RTP_TT(R,T,TT,PRC)$COEF_CPT(R,T,TT,P)=YES;
     ELSE RTP_TT(R,T,T,PRC)$RTP(R,T,P)=YES; CNT=0;));
-   RP_RTF(R,PRC)$CNT = -1+2$(F=CNT);
-   IF(F,RCAP_BND(RTP(R,T,PRC),'UP')$(NOT SUM(P$PRC_REFIT(R,PRC,P),RTP(R,T,P)$(ABS(PRC_REFIT(R,PRC,P))>1)))=EPS));
-$EXIT
-*-----------------------------------------------------------------------------
-$LABEL EQOBJ
-$SETGLOBAL RCAPSUB -SUM(VNRET(V,T),%VART%_SCAP(R,V,T,P%SWS%))$PRC_RCAP(R,P)
-$SETGLOBAL RCAPSBM -SUM(VNRET(MODLYEAR,T),%VART%_SCAP(R,MODLYEAR,T,P%SWS%))$PRC_RCAP(R,P)
+   IF(CNT,Z=(-1+2$(F=CNT))*MAX(1,MY_F); ELSE Z=-2);
+   IF(NOT MAPVAL(CNT),RP_RTF(R,PRC) = Z);
+   IF(F,RCAP_BND(RTP(R,T,PRC),'UP')$(NOT SUM(P$PRC_REFIT(R,PRC,P),RTP(R,T,P)$(ABS(PRC_REFIT(R,PRC,P))>2)))=EPS));
 * Force obj type 2a/2b
   VNRET(VNT(V,T))$(NOT SAMEAS(V,T)) = YES;
   RVPRL(RTP(R,V,P))$PRC_RCAP(R,P)=MAX(0,SMAX(RTP_CPTYR(R,VNRET(V,T),P),YEARVAL(T))-YEARVAL(V));
   RVP(RTP) $= RVPRL(RTP);
   NCAP_ILED(RVP) = NCAP_ILED(RVP)+EPS;
-*-------------------
-
-* Allow retirements in integer multiples of a user-defined block-size or the full residual capacity
-  %EQ%_DSCRET(RTP_CPTYR(%R_V_T%,P)%SWT%)$(VNRET(V,T)$RCAP_BLK(R,V,P))..
-
-   %VAR%_SCAP(R,V,T,P %SOW%) - RTFORC(R,V,T,P)  =E=
-   RCAP_BLK(R,V,P) * %VAR%_DRCAP(R,V,T,P%SOW%,'2') + (NCAP_PASTI(R,V,P)-RTFORC(R,V,T,P)) * %VAR%_DRCAP(R,V,T,P%SOW%,'1');
-
-* Cumulative retirements
-  %EQ%_CUMRET(R,VNRET(V,K(T-1)),P%SWT%)$(RTP_CPTYR(R,V,T,P)$PRC_RCAP(R,P))..
-
-   SUM(RTP_CPTYR(R,V,MODLYEAR(K),P),%VAR%_SCAP(R,V,T,P%SOW%)-%VAR%_RCAP(R,V,T,P%SOW%)-%VARM%_SCAP(R,V,K,P%SWS%))
-   =E= 0;
-
-* Maximum salvage capacity
-  %EQ%L_SCAP(RTP(R,V(LL),P),IPS%SOW%)$(((OBJ_SUMS(RTP)+(NOT PRC_VINT(R,P))$T(V))$RVPRL(RTP)$LIM(IPS) OR NCAP_OLIFE(RTP)$IO(IPS))$PRC_RCAP(R,P))..
-
-   SUM(IO(IPS),SUM((RTP_CPTYR(R,V,TT,P),PRC_TS(R,P,S)),%VARTT%_ACT(R,V,TT,P,S%SWS%)*FPD(TT))/PRC_CAPACT(R,P)/NCAP_OLIFE(RTP)) +
-   SUM(VNRET(V,T(LL+RVPRL(RTP))),%VART%_SCAP(R,V,T,P%SWS%))$LIM(IPS)
-
-   =L=  %VARV%_NCAP(R,V,P%SWS%)$T(V) + NCAP_PASTI(R,V,P) - %VAR%_SCAP(R,V,'0',P%SOW%)$OBJ_SUMS(R,V,P)$RVPRL(R,V,P);
-
-* Retrofits and life-extensions
-  %EQ%L_REFIT(RTP_TT(R,TT,T,PRC)%SWT%)$RT_PP(R,T)..
-   SUM((V(TT),P)$((VNT(T,V) OR PRC_REFIT(R,PRC,P)<0)$PRC_REFIT(R,PRC,P)),COEF_CPT(R,V,T,P)*(%VARV%_NCAP(R,V,P%SWS%)%RCAPSUB%))+%VAR%_RCAP(R,T,TT,PRC%SOW%)
-   =E=
-   SUM(RTP_CPTYR(R,VNRET(V,TT),PRC),COEF_CPT(R,V,T,PRC) * (%VARTT%_SCAP(R,V,TT,PRC%SWS%)-SUM(MODLYEAR(K(TT-1))$VNRET(V,K),%VARM%_SCAP(R,V,K,PRC%SWS%)+MIN(INF$RP_RTF(R,PRC),RTFORC(R,V,TT,PRC)-RTFORC(R,V,K,PRC)))))+
-   SUM(K(TT-1)$RTP_TT(R,K,T,PRC),%VAR%_RCAP(R,T,K,PRC%SOW%))$(RP_RTF(R,PRC)>0);
-*-----------------------------------------------------------------------------
-$IF %STAGES%==YES $%SW_TAGS%
 * Set bounds for continuous retirements
   RCAP_BND(R,T,P,BDNEQ) $= RCAP_BND(R,T,P,'FX');
   PASTSUM(RVP(R,V,P))$RCAP_BND(RVP,'N') = -(B(V)+NCAP_ILED(RVP)+ABS(RCAP_BND(RVP,'N')));
@@ -97,14 +64,51 @@ $IF %STAGES%==YES $%SW_TAGS%
   %VAR%_RCAP.LO(RTP_CPTYR(R,VNRET(V,T),P)%SOW%)$RVP(R,V,P) = RCAP_BND(R,T,P,'LO')$(NOT MAPVAL(RCAP_BLK(R,V,P)))+MIN(0,RTFORC(R,V,T,P)-RTFORC(R,V,TT,P)$Z);
   %VAR%_RCAP.UP(RTP_CPTYR(R,VNRET(V,T),P)%SOW%)$RCAP_BND(R,T,P,'UP') =
     MIN(SMIN(PASTMILE(V),NCAP_PASTI(R,V,P)),RCAP_BND(R,T,P,'UP')+MAX(0,RTFORC(R,V,T,P)-RTFORC(R,V,TT,P)$Z)));
-  %VAR%_SCAP.LO(RTP_CPTYR(R,V,T,P)%SOW%)$RVP(R,V,P) = MAX(RCAP_BND(R,T,P,'LO'),RTFORC(R,V,T,P));
+  %VAR%_SCAP.LO(RTP_CPTYR(R,VNRET(V,T),P)%SOW%)$RVP(R,V,P) = MAX(RCAP_BND(R,T,P,'LO'),RTFORC(R,V,T,P));
   %VAR%_SCAP.UP(RTP_CPTYR(R,PASTMILE(V),T,P)%SOW%)$RVP(R,V,P) = MAX(RTFORC(R,V,T,P),NCAP_PASTI(R,V,P));
   LOOP(RVP(R,V,P),Z=1;LOOP(RTP_CPTYR(R,VNRET(V,T),P)$Z,Z=0; %VAR%_SCAP.UP(R,V,T,P%SOW%)=MIN(%VAR%_RCAP.UP(R,V,T,P%SOW%),%VAR%_SCAP.UP(R,V,T,P%SOW%))));
   %VAR%_SCAP.FX(RTP_CPTYR(R,V,T,P)%SOW%)$(((M(T) LT ABS(PASTSUM(R,V,P)))+((M(T)-LEAD(T))/PASTSUM(R,V,P) GE 1))$PASTSUM(R,V,P)) = RTFORC(R,V,T,P);
 * Force refits = retirements on request
-  PRC_YMAX(PRC_RCAP(RP)) = MIN(0,SUM(P$PRC_REFIT(RP,P),MAX(EPS,2-ABS(PRC_REFIT(RP,P)))));
+  PRC_YMAX(PRC_RCAP(RP)) = MIN(0,SUM(P$PRC_REFIT(RP,P),MAX(EPS,3-ABS(PRC_REFIT(RP,P)))));
   RVPRL(R,'0',P) $= PRC_YMAX(R,P);
-  %VAR%_RCAP.UP(RTP_TT(R,T(TT++1),T,P)%SOW%)$PRC_YMAX(R,P)=MAX(0,SUM(RTP(R,PYR_S(V),P),RTFORC(R,V,T,P)-RTFORC(R,V,TT,P))$VNT(TT,T)$(NOT RP_RTF(R,P)));
+  %VAR%_RCAP.UP(RTP_TT(R,T(TT++1),T,P)%SOW%)$((RP_RTF(R,P)<3)$PRC_YMAX(R,P))=MAX(0,SUM(RTP(R,PYR_S(V),P),RTFORC(R,V,T,P)-RTFORC(R,V,TT,P))$VNT(TT,T)$(MOD(RP_RTF(R,P),2)=0));
+  OPTION CLEAR=PASTSUM,CLEAR=RVP;
+$EXIT
+*-----------------------------------------------------------------------------
+$LABEL EQOBJ
+$SETGLOBAL RCAPSUB -SUM(VNRET(V,T),%VART%_SCAP(R,V,T,P%SWS%))$PRC_RCAP(R,P)
+$SETGLOBAL RCAPSBM -SUM(VNRET(MODLYEAR,T),%VART%_SCAP(R,MODLYEAR,T,P%SWS%))$PRC_RCAP(R,P)
+*-------------------
+
+* Allow retirements in integer multiples of a user-defined block-size or the full residual capacity
+  %EQ%_DSCRET(RTP_CPTYR(%R_V_T%,P)%SWT%)$(VNRET(V,T)$RCAP_BLK(R,V,P))..
+
+   %VAR%_SCAP(R,V,T,P%SOW%) - RTFORC(R,V,T,P)  =E=
+   RCAP_BLK(R,V,P) * %VAR%_DRCAP(R,V,T,P%SOW%,'2') + (NCAP_PASTI(R,V,P)-RTFORC(R,V,T,P)) * %VAR%_DRCAP(R,V,T,P%SOW%,'1');
+
+* Cumulative retirements
+  %EQ%_CUMRET(R,VNRET(V,K(T-(1-1$RP_RTF(R,P)))),P%SWT%)$(RTP_CPTYR(R,V,T,P)$PRC_RCAP(R,P))..
+
+   SUM(RTP_CPTYR(R,V,K,P),%VAR%_SCAP(R,V,T,P%SOW%) - %VAR%_RCAP(R,V,T,P%SOW%)) - 
+   SUM(RTP_CPTYR(R,V,MODLYEAR(Y(T-1)),P)$VNRET(V,Y),%VARM%_SCAP(R,V,Y,P%SWS%))
+   =E= 0;
+
+* Maximum salvage capacity
+  %EQ%L_SCAP(RTP(R,V(LL),P),IPS%SOW%)$(((OBJ_SUMS(RTP)+(NOT PRC_VINT(R,P))$T(V))$RVPRL(RTP)$L(IPS) OR NCAP_OLIFE(RTP)$IO(IPS))$PRC_RCAP(R,P))..
+
+   SUM(IO(IPS),SUM((RTP_CPTYR(R,V,TT,P),PRC_TS(R,P,S)),%VARTT%_ACT(R,V,TT,P,S%SWS%)*FPD(TT))/PRC_CAPACT(R,P)/NCAP_OLIFE(RTP)) +
+   SUM(VNRET(V,T(LL+RVPRL(RTP))),%VART%_SCAP(R,V,T,P%SWS%))$LIM(IPS)
+
+   =L=  %VARV%_NCAP(R,V,P%SWS%)$T(V) + NCAP_PASTI(R,V,P) - %VAR%_SCAP(R,V,'0',P%SOW%)$OBJ_SUMS(R,V,P)$RVPRL(R,V,P);
+
+* Retrofits and life-extensions
+  %EQ%L_REFIT(RTP_TT(R,TT,T,PRC),LNX(L)%SWT%)$((BD(L)+VNT(T,TT)$(RP_RTF(R,PRC)=3))$RT_PP(R,T))..
+   SUM((V(TT),P)$((VNT(T,V) OR PRC_REFIT(R,PRC,P)<0)$PRC_REFIT(R,PRC,P)),COEF_CPT(R,V,T,P)*(%VARV%_NCAP(R,V,P%SWS%)%RCAPSUB%))+%VAR%_RCAP(R,T,TT,PRC%SOW%)$(RP_RTF(R,PRC)$VNT(T,TT)$BD(L)<3)
+   =E=
+   SUM(RTP_CPTYR(R,VNRET(V,TT),PRC),COEF_CPT(R,V,T,PRC) * (%VARTT%_RCAP(R,V,TT,PRC%SWS%)-SUM(MODLYEAR(K(TT-1))$VNT(V,K),MIN(INF$MOD(RP_RTF(R,PRC),2),RTFORC(R,V,TT,PRC)-RTFORC(R,V,K,PRC)))))+
+   SUM(K(TT-1)$RTP_TT(R,K,T,PRC),%VAR%_RCAP(R,T,K,PRC%SOW%))$(RP_RTF(R,PRC)$BD(L)>0);
+*-----------------------------------------------------------------------------
+$IF %VARMAC% $SET VAR %VAS%
 $IF NOT %MIP% OPTION CLEAR=RCAP_BLK;
 * Set bounds for integer retirements
   IF(CARD(RCAP_BLK), RCAP_BLK(RTP)$(RCAP_BLK(RTP) LE 0) = 0;
@@ -115,7 +119,7 @@ $IF NOT %MIP% OPTION CLEAR=RCAP_BLK;
    %VAR%_DRCAP.UP(RTP_CPTYR(R,V,T,P)%SOW%,'2')$RCAP_BLK(R,V,P) = MIN(10,FLOOR(%VAR%_SCAP.UP(R,V,T,P%SOW%)/RCAP_BLK(R,V,P)+1E-8));
   );
   RVPRL(R,PYR_S,P)$PRC_RESID(R,'0',P)=NO; NCAP_OLIFE(R,T,P)$(NOT PRC_VINT(R,P))=NO;
-  OPTION CLEAR=COEF_CAP,CLEAR=PASTSUM,CLEAR=RVP;
+  OPTION CLEAR=COEF_CAP;
 $EXIT
 *-----------------------------------------------------------------------------
 $LABEL OBJFIX

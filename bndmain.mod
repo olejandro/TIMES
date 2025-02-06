@@ -1,7 +1,7 @@
 *++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-* Copyright (C) 2000-2021 Energy Technology Systems Analysis Programme (ETSAP)
+* Copyright (C) 2000-2023 Energy Technology Systems Analysis Programme (ETSAP)
 * This file is part of the IEA-ETSAP TIMES model generator, licensed
-* under the GNU General Public License v3.0 (see file LICENSE.txt).
+* under the GNU General Public License v3.0 (see file NOTICE-GPLv3.txt).
 *=============================================================================*
 * BNDMAIN.MOD establishes bounds on variables
 *   %1 - mod or v# for the source code to be used
@@ -33,8 +33,8 @@ $   BATINCLUDE bnd_flo.%1
 *-----------------------------------------------------------------------------
 * limit on storage
 *-----------------------------------------------------------------------------
-$   BATINCLUDE bnd_stg.%1 SIN  STGIN  0
-$   BATINCLUDE bnd_stg.%1 SOUT STGOUT -INF
+$   BATINCLUDE bnd_stg.%1 SIN  IN  0
+$   BATINCLUDE bnd_stg.%1 SOUT OUT -INF
 
 *-----------------------------------------------------------------------------
 * limit on total installation of new capacity

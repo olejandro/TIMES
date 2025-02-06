@@ -1,7 +1,7 @@
 *++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-* Copyright (C) 2000-2022 Energy Technology Systems Analysis Programme (ETSAP)
+* Copyright (C) 2000-2023 Energy Technology Systems Analysis Programme (ETSAP)
 * This file is part of the IEA-ETSAP TIMES model generator, licensed
-* under the GNU General Public License v3.0 (see file LICENSE.txt).
+* under the GNU General Public License v3.0 (see file NOTICE-GPLv3.txt).
 *=============================================================================*
 * COEF_OBJ.MOD do coefficient calculations for the OBJ
 *   %1 - mod or v# for the source code to be used
@@ -21,7 +21,6 @@
 * For shaped demand elasticises
   ALIAS(AGE,SPAN);
   SET SHEDJ(LIM,J) 'Elastic demand shape indexes';
-  PARAMETER BDSIG(L);
   PARAMETER SHAPED(BD,J,AGE) 'Elastic demand shape curves' //;
 
 * establish eachyear sets matching documentation
@@ -187,6 +186,7 @@ $IF NOT %TIMESED% ==YES  $GOTO TCOST
   BDSIG(BDNEQ)=CEIL(SMAX(RTC_SHED(R,T,C,BDNEQ,J),COM_VOC(R,T,C,BDNEQ))*100); BDSIG('LO')=MIN(100,BDSIG('LO'));
   SHAPED(SHEDJ(BDNEQ,J),AGE)$(ORD(AGE) LE BDSIG(BDNEQ)) = (1+.01/(1+(ORD(AGE)-1)/100))**(1/MAX(1E-3,SHAPE(J,AGE)));
   LOOP((AGE,SPAN(AGE-1),BDNEQ(BD))$(ORD(AGE) LE BDSIG(BD)),SHAPED(SHEDJ(BD,J),AGE) = SHAPED(BD,J,AGE)*SHAPED(BD,J,SPAN));
+  BDSIG(BDNEQ) = 1-2$BDUPX(BDNEQ);
 *-----------------------------------------------------------------------------
 $IF NOT %VALIDATE%==YES $GOTO TCOST
 * Flat period assignment
@@ -203,4 +203,3 @@ $IF NOT %VALIDATE%==YES $GOTO TCOST
 
 $LABEL TCOST
 * ignore investment cost for learned technologies when ETL active: COEF_EXT.ETL
-  BDSIG(BDNEQ) = 1-2$BDUPX(BDNEQ);

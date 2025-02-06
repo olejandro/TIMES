@@ -1,7 +1,7 @@
 *++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-* Copyright (C) 2000-2023 Energy Technology Systems Analysis Programme (ETSAP)
+* Copyright (C) 2000-2024 Energy Technology Systems Analysis Programme (ETSAP)
 * This file is part of the IEA-ETSAP TIMES model generator, licensed
-* under the GNU General Public License v3.0 (see file LICENSE.txt).
+* under the GNU General Public License v3.0 (see file NOTICE-GPLv3.txt).
 *=============================================================================*
 * PP_QACK.MOD perform the individual quality control checks
 *   %1 - mod or v# for the source code to be used
@@ -22,7 +22,6 @@
 *   - check that all attributes s-index match up with RPS and the individual commodities
 *   - warning that "NRG" used if no group matching the PG and PRC_SPG not provided
 *   - No PRC_CAPUNIT/ACTUNIT assigned and > 1 input; fatal?
-*   - PRC_CAPUNIT/ACTUNIT cg should be the same; serious?
 *   - Check that anticipated mapping list members that may affect matrix generation are provided (e.g., FRE/LIMRENEW)
 *   - check the TS associated with any attribute (as well as COM/PRC_TS) is OK
 *   - check that if list of peak timeslices provided by the user then actual peak is in said list
@@ -34,34 +33,37 @@
 *   - check that no 0/EPS for attributes that could turn-off a flow, or cause a 0 divide
 *-----------------------------------------------------------------------------
 *V0.5c 980904 - File opened in PPMAIN.MOD, setup to append in case any PP_MAIN messages output
-*  FILE QLOG / QA_CHECK.LOG /;
+* FILE QLOG / QA_CHECK.LOG /;
   ALIAS(U2,U3,U4,*);
-  PUT QLOG;
-  IF(PUTOUT, QLOG.AP = 1);
-
-* make 2 decimals points and allow for wider page
-  QLOG.NW=10;QLOG.ND=2;QLOG.PW=150;
-
+  IF(YES, PUT QLOG; QLOG.AP$PUTOUT = 1;
+*...make 2 decimals points and allow for wider page
+    QLOG.NW=10; QLOG.ND=2; QLOG.PW=150);
   PUTGRP = 0;
 *-----------------------------------------------------------------------------
 * Some important control sets are completed here
 * Complete merely CAP dependent flow indicators
   RPC_CONLY(RTPC(R,T,P,C))$RPC_NOFLO(R,P,C) = YES;
 * Complete flow variable indicators
-  RTPCS_VARF(RPC_CONLY(R,T,P,C),S) = NO;
+  RTPCS_VARF(RPC_CONLY,S) = NO;
 * Remove superfluous entries from RCS_COMBAL
   RCS_COMBAL(RHS_COMBAL,BDNEQ) = NO;
 * Establish the RPG_RED control set
   TRACKPC(R,P,C)$(RPC_ACT(R,P,C)+RPC_FFUNC(R,P,C)+RPC_EMIS(R,P,C)) = YES;
   RPG_RED(R,P,CG,IO)$(NOT SUM(TOP(TRACKPC(R,P,C),IO)$COM_GMAP(R,CG,C),1)) = NO;
-  OPTION CLEAR = TRACKPC;
 $ IFI %VAR_UC%==YES OPTION UC_GMAP_U<=UC_UCN;
   RTP(NO_RVP) = NO;
+* Vintage controls for generation performance
+  OPTION RTP_VNTBYR < RTP_VINTYR, COEF_VNT < COEF_CPT, TRACKP < RP_UPL;
+  TRACKP(R,P)$=SUM(RP_PL(R,P,L),1); TRACKP(RP_XRED)=YES; TRACKP(CHP)=YES;
+  RVP_KMAP(RTP(R,V,P),V)$(PRC_VINT(R,P)$TRACKP(R,P)) = YES; TRACKP(PRC_VINT)=NO;
+  RVP_KMAP(RTP(R,T,P),V)$(COEF_VNT(RTP,V)$TRACKP(R,P)) = YES;
+  OPTION CLEAR=TRACKPC,CLEAR=TRACKP,CLEAR=RP_XRED;
+
 *-----------------------------------------------------------------------------
 * Year fractions
 *-----------------------------------------------------------------------------
   LOOP(R, TS_ARRAY(S) = 0;
-    LOOP(TS_MAP(R,TS,S)$(G_YRFR(R,S) EQ 0), TS_ARRAY(S) = 1;);
+    LOOP(TS_MAP(R,TS,S)$(G_YRFR(R,S) EQ 0), TS_ARRAY(S) = 1);
     LOOP(S$TS_ARRAY(S),
 $        BATINCLUDE pp_qaput.%1 PUTOUT PUTGRP 99 'Year Fraction G_YRFR is ZERO!'
          PUT QLOG ' FATAL ERROR   -     R=',%RL%,' S=',S.TL;
@@ -75,13 +77,16 @@ $        BATINCLUDE pp_qaput.%1 PUTOUT PUTGRP 99 'Year Fraction G_YRFR is ZERO!'
 $    BATINCLUDE pp_qaput.%1 PUTOUT PUTGRP 99 'Illegal system commodity in topology.'
      PUT QLOG ' FATAL ERROR   -     R=',%RL%,' P=',%PL%,' C=',C.TL;
   );
-  PUTGRP = 0; Z = 1;
+  PUTGRP = 0; 
 * see that components of any CG for a process in topology
   LOOP(PRC_CG(R,P,CG)$(NOT COM_TYPE(CG)),
-      Z = NOT SUM(COM_GMAP(R,CG,C)$RPC(R,P,C),1);
-      LOOP(COM_GMAP(R,CG,C)$((NOT RPC(R,P,C))$Z),
+    IF(NOT SUM(COM_GMAP(R,CG,C)$RPC(R,P,C),1), Z = 1;
+      LOOP(COM_GMAP(R,CG,C)$(NOT RPC(R,P,C)), Z = 0;
 $        BATINCLUDE pp_qaput.%1 PUTOUT PUTGRP 10 'Commodity in CG of process P but not in topology'
-         PUT QLOG ' SEVERE WARNING  -   R=',%RL%,' P=',%PL%,' C=',%CL%,' CG=',CG.TL ;
+         PUT QLOG ' SEVERE WARNING  -   R=',%RL%,' P=',%PL%,' C=',%CL%,' CG=',CG.TL );
+      IF(Z,
+$        BATINCLUDE pp_qaput.%1 PUTOUT PUTGRP 10 'No commodities in CG of process P'
+         PUT QLOG ' SEVERE WARNING  -   R=',%RL%,' P=',%PL%,' CG=',CG.TL );
       )
     );
   PUTGRP = 0;
@@ -89,7 +94,12 @@ $        BATINCLUDE pp_qaput.%1 PUTOUT PUTGRP 10 'Commodity in CG of process P b
 * Commodity description
 *-----------------------------------------------------------------------------
 $IF NOT %TIMESED%==YES $SETLOCAL TIMESED NO
-  IF(%TIMESED%,
+  IF(%TIMESED%, FORWARD(T)=YES;
+$IF DEFINED SOL_BPRICE OPTION FORWARD < SOL_BPRICE;
+    LOOP(T$(NOT FORWARD(T)),
+$        BATINCLUDE pp_qaput.%1 PUTOUT PUTGRP 09 'Elastic Demand but missing BPRICE for some MILESTONYR - using tail extrapolation'
+         PUT QLOG ' WARNING       -  Missing BPRICE, MILESTONYR=',T.TL);
+    PUTGRP = 0;
     LOOP(DEM(R,C)$SUM(BD$COM_STEP(R,C,BD),1),
 * Check that elastic demands fully sprecifed
       IF((NOT SUM((T,S,CUR)$COM_BPRICE(R,T,C,S,CUR),1)) +
@@ -154,7 +164,7 @@ $     BATINCLUDE pp_qaput.%1 PUTOUT PUTGRP 10 'Process with missing or mismatche
   PRC_CG(RP_PG(R,P,CG))$=SUM(RPC_AFLO(R,P,C)$(NOT RPC_FFUNC(R,P,C)),1);
   PUTGRP = 0;
 * Make a QA Complaint about invalid FS_EMIS substitution
-  LOOP(FS_EMIS(R,P,CG,C,COM)$RPC_EMIS(R,P,C),
+  LOOP(FS_EMIT(R,P,COM,CG,C)$RPC_EMIS(R,P,C),
 $   BATINCLUDE pp_qaput.mod PUTOUT PUTGRP 01 'Illegal dependency of substituted auxiliary commodities C1 and C2 in FLO_SUM'
     PUT QLOG ' WARNING       -     R=',%RL%,' P=',%PL%,' C1=',%CL%,' C2=',COM.TL;
   );
@@ -215,11 +225,20 @@ $      BATINCLUDE pp_qaput.%1 PUTOUT PUTGRP 01 'IRE Process with invalid Paramet
        IF(Z = 3, PUT QLOG ' WARNING       - IRE with FLO_SHAR: R=',%RL%,' P=',%PL%,' C=',CG.TL);
        IF(Z = 4, PUT QLOG ' WARNING       - IRE with ACT_EFF:  R=',%RL%,' P=',%PL%,' CG=',CG.TL);
   );
-  OPTION CLEAR=UNCD7;
-  UNCD7(UC_N,SIDE--ORD(SIDE),R,LL--ORD(LL),P,C,S--ORD(S)) $= UC_FLO(UC_N,SIDE,R,LL,P,C,S)$RP_IRE(R,P);
-  LOOP(UNCD7(UC_N,SIDE,R,LL,P,C,S),
+  OPTION CLEAR=RXX;
+  LOOP(UC_QAFLO('1',UCN,SIDE,R,P,C)$(NOT UC_CAPFLO(UCN,SIDE,R,P,C)),RXX(R,P,UCN)=YES);
+  LOOP(RXX(R,P,UC_N),
 $      BATINCLUDE pp_qaput.%1 PUTOUT PUTGRP 01 'IRE Process with invalid Parameters'
        PUT QLOG ' WARNING       - IRE with UC_FLO:   R=',%RL%,' P=',%PL%,' UC_N=',UC_N.TL;
+  );
+  OPTION CLEAR=RXX; PUTGRP=0;
+  LOOP(PRC_MAP(R,'IRE',P)$(RP(R,P)$(NOT RP_IRE(R,P))),
+$      BATINCLUDE pp_qaput.%1 PUTOUT PUTGRP 09 'Standard Flow Process with invalid Attributes'
+       PUT QLOG ' SEVERE ERROR  - Process Group is IRE:  R=',%RL%,' P=',%PL%;
+  );
+  LOOP(UC_QAFLO('2',UC_N,SIDE,RPC(R,P,C)),
+$      BATINCLUDE pp_qaput.%1 PUTOUT PUTGRP 01 'Standard Flow Process with invalid Parameters'
+       PUT QLOG ' WARNING       - FLO flow with UC_IRE:  R=',%RL%,' P=',%PL%,' C=',%CL%,' UC_N=',UC_N.TL;
   );
 *-----------------------------------------------------------------------------
   PUTGRP = 0;
@@ -281,7 +300,7 @@ $IF DEFINED RPG_ACE LOOP(RPG_ACE(R,P,CG,IO),TRACKPC(RPC_ACE(R,P,C)) = YES);
   TRACKPC(RPC_NOFLO) = YES;
   TRACKPC(RPC_FFUNC) = YES;
   LOOP(T, TRACKP(RP_STD(R,P))$RTP_VARA(R,T,P) = YES);
-  LOOP(TOP(TRACKP(R,P),C,IO)$(NOT TRACKPC(R,P,C)),
+  LOOP(TOP(RPC(TRACKP(R,P),C),IO)$(NOT TRACKPC(R,P,C)),
 $        BATINCLUDE pp_qaput.%1 PUTOUT PUTGRP 01 'RPC in TOP not found in any ACTFLO/FLO_SHAR/FLO_FUNC/FLO_SUM'
          PUT QLOG ' WARNING       -     R=',%RL%,' P=',%PL%,' C=',%CL%,' IO=',IO.TL;
   );

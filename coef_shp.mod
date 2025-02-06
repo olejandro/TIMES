@@ -1,7 +1,7 @@
 *++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-* Copyright (C) 2000-2023 Energy Technology Systems Analysis Programme (ETSAP)
+* Copyright (C) 2000-2024 Energy Technology Systems Analysis Programme (ETSAP)
 * This file is part of the IEA-ETSAP TIMES model generator, licensed
-* under the GNU General Public License v3.0 (see file LICENSE.txt).
+* under the GNU General Public License v3.0 (see file NOTICE-GPLv3.txt).
 *=============================================================================*
 * COEF_SHP prepares the shapes for COEF_PTR and COEF_CPT
 *=============================================================================*
@@ -43,7 +43,7 @@
   RTP_FFCX(RTP_CAPYR,'CAPFLO',CG) = 0;
 * Option for non-vintaged FLO_FUNC multipliers
   RTP_FFCX(RTP_VINTYR(R,V,T,P),CG,CG2)$((FLO_FUNC(R,V,P,CG,CG2,'ANNUAL')>0)$RTP_CGC(R,V,P,CG,CG2))=FLO_FUNC(R,T,P,CG,CG2,'ANNUAL')/FLO_FUNC(R,V,P,CG,CG2,'ANNUAL')-1;
-  OPTION CLEAR=RTP_CGC,CLEAR=TRACKP,CLEAR=RVPRL,CLEAR=RP_GRP;
+  OPTION CLEAR=TRACKP,CLEAR=RVPRL,CLEAR=RP_GRP;
 *------------------------------------------------------------------------------
 * Shaping of COEF_CPT
 *------------------------------------------------------------------------------
@@ -68,8 +68,27 @@
     RVPRL(RTP)$((COEF_RPTI(RTP)>1)$NCAP_CPX(RTP)) = ROUND(NCAP_TLIFE(RTP)-1)+EPS;
     COEF_CAP(RTP_CPTYR(R,V(TT),T,P))$RVPRL(R,V,P) =
         SUM(OPYEAR(AGE+RVPRL(R,V,P),LIFE),SHAPE(J+(NCAP_CPX(R,V,P)-1),LIFE)) / (RVPRL(R,V,P)+1);
-    COEF_CAP(R,V,T,P)$COEF_CAP(R,V,T,P) = 1/MAX(1,COEF_CPT(R,V,T,P)/COEF_CAP(R,V,T,P))-1;
+    COEF_CAP(RTP_CPTYR(R,V,T,P))$NCAP_CPX(R,V,P) = (1/MAX(1,COEF_CPT(R,V,T,P)/COEF_CAP(R,V,T,P)))$COEF_CAP(R,V,T,P)-1;
   );
-  OPTION RTP_CPX <= COEF_CAP;
   COEF_CPT(R,V,T,P)$COEF_CAP(R,V,T,P) = COEF_CPT(R,V,T,P)*(COEF_CAP(R,V,T,P)+1);
-  OPTION CLEAR=PRC_YMIN,CLEAR=PRC_YMAX,CLEAR=TRACKP,CLEAR=COEF_CAP,CLEAR=RVPRL;
+  OPTION CLEAR=PRC_YMIN,CLEAR=PRC_YMAX,CLEAR=TRACKP,CLEAR=RTP_CGC, RTP_CPX <= COEF_CAP, CLEAR=COEF_CAP;
+
+* Override COEF_OCOM if conditions met for using capacity transfer
+  RTP_CGC(RTP(R,V,P),CG('CAPFLO'),C)$((FLO_FUNCX(R,'0',P,CG,C)=3)$NCAP_OCOM(RTP,C))=YES;
+  LOOP(AGEJ(J,AGE)$CARD(RTP_CGC),
+    OPTION RVPRL < RTP_CGC;
+    PASTSUM(RTP(R,V,P))$RVPRL(RTP) = B(V)+ROUND(NCAP_ILED(RTP))+ROUND(NCAP_DLAG(RTP)+NCAP_DLIFE(RTP)/2);
+    RVPRL(RTP)$RVPRL(RTP) = PASTSUM(RTP)+ROUND(COEF_RPTI(RTP)*NCAP_TLIFE(RTP));
+    LOOP(G_RCUR(R,CUR),
+      FIL2(T)=COEF_PVT(R,T)*D(T)/SUM(PERIODYR(T,Y_EOH),(YEARVAL(Y_EOH)-B(T)+1)*OBJ_DISC(R,Y_EOH,CUR));
+*.... Calculate remaining levelized capacity levels
+      COEF_CAP(R,VNT(V,T),P)$((MIN(M(T)+1,E(T))<RVPRL(R,V,P))$RVPRL(R,V,P)) = 1/COEF_RPTI(R,V,P) *
+        MAX(POWER(SHAPE(J+(NCAP_CPX(R,V,P)-1),AGE+(B(T)-PASTSUM(R,V,P)-1)),B(T)-PASTSUM(R,V,P)-1>=0)*(1-FIL2(T)) +
+            SUM(PERIODYR(T,Y_EOH)$(YEARVAL(Y_EOH)<RVPRL(R,V,P)),OBJ_DISC(R,Y_EOH,CUR)*POWER(SHAPE(J+(NCAP_CPX(R,V,P)-1),AGE+MOD(YEARVAL(Y_EOH)-PASTSUM(R,V,P),ROUND(NCAP_TLIFE(R,V,P)))),YEARVAL(Y_EOH)-PASTSUM(R,V,P)>=0))/COEF_PVT(R,T)*FIL2(T),
+            SHAPE(J+(NCAP_CPX(R,V,P)-1),AGE+MAX(0,E(T)-PASTSUM(R,V,P)))$(E(T)<RVPRL(R,V,P))));
+*...Derive overriding COEF_OCOM coefficients
+    COEF_OCOM(R,VNT(V,T),P,C)$RTP_CGC(R,V,P,'CAPFLO',C) = COEF_RPTI(R,V,P) *
+      (MAX(0,POWER(SHAPE(J+(NCAP_CPX(R,V,P)-1),AGE+(B(T)-PASTSUM(R,V,P)-1)),B(T)-PASTSUM(R,V,P)-1>=0)-COEF_CAP(R,V,T,P))*NCAP_OCOM(R,V,P,C)/FPD(T))$(B(T)<RVPRL(R,V,P));
+    COEF_OCOM(R,V,T(TT+1),P,C)$((B(T)>PASTSUM(R,V,P))$VNT(V,TT)$RTP_CGC(R,V,P,'CAPFLO',C)) = COEF_RPTI(R,V,P) * MAX(0,COEF_CAP(R,V,TT,P)-COEF_CAP(R,V,T,P))*NCAP_OCOM(R,V,P,C)/FPD(T);
+  );
+  OPTION CLEAR=RTP_CGC,CLEAR=COEF_CAP,CLEAR=PASTSUM,CLEAR=RVPRL;

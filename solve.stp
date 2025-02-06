@@ -1,7 +1,7 @@
 *++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-* Copyright (C) 2000-2022 Energy Technology Systems Analysis Programme (ETSAP)
+* Copyright (C) 2000-2024 Energy Technology Systems Analysis Programme (ETSAP)
 * This file is part of the IEA-ETSAP TIMES model generator, licensed
-* under the GNU General Public License v3.0 (see file LICENSE.txt).
+* under the GNU General Public License v3.0 (see file NOTICE-GPLv3.txt).
 *=============================================================================*
 * SOLVE.stp is the code for handling stepped solution of TIMES
 *   %1 - mod
@@ -17,7 +17,6 @@ $IF NOT SET TIMESTEP $SET TIMESTEP '999' SET STEPPED NO
 *-----------------------------------------------------------------------------
   SCALAR PRESOL / 1 /;
   SET UC_RN(UC_N,ALL_R) //;
-  SET R_UCT(R,UC_N,T)   //;
   SET RTP_IRE(R,T,P,IE) 'IRE equations with fixed regions';
   SET IRE_RPR(R,P,R,IE) 'All regions REG linked to IRE process by equations in R';
   SET IRE_FXT(R,T,P) 'IRE with some linked regions fixed at T';
@@ -152,7 +151,7 @@ $   IFI %CLI%==YES LOOP(T$(NOT SUM(R,NOT NO_RT(R,T))),CM_MAXC(LL,CG)$SUPERYR(T,L
   LOOP(BD,UC_T_SUCC(R,UC_N,T)$UC_DYNBND(UC_N,BD) = RT_PP(R,T));
 * RHS and Bounds Relaxation
 $ SETLOCAL TOLR '3E-6' SETLOCAL TOLA '1E-4' SETLOCAL TOLX '1E-5'
-$IF DEFINED XTP $SETLOCAL TOLR '2E-8' SETLOCAL TOLA 1E-6
+$IF DEFINED TM_HSX $SETLOCAL TOLR '1E-7' SETLOCAL TOLA 1E-6
   IF(CARD(BACKWARD) OR MY_FYEAR, OPTION CLEAR=UC_BND,CLEAR=R_UCT;
    R_UCT(R_UC(R,UC_N),T)$(UC_T_EACH(R,UC_N,T)+UC_T_SUCC(R,UC_N,T)) = YES;
    LOOP(UC_R_SUM(R_UC(R,UC_N)),UC_T(UC_N,T)$R_UCT(R,UC_N,T) = YES);
@@ -192,16 +191,8 @@ $IF DEFINED XTP $SETLOCAL TOLR '2E-8' SETLOCAL TOLA 1E-6
    %SW1%CAP_BND(R,T,P,'LO'%SW2%)                           $= %SW1%CAP_BND(R,T,P,'LO'%SW2%)*(1-%TOLR%);
   );
 $  BATINCLUDE bnd_ucw.%1
-* Redefine UC_RHSMAP according to current flags
-  OPTION CLEAR=UC_RHSMAP;
-  LOOP((UC_R_EACH(R,UC_N),T,LIM)$UC_RHSRT(R,UC_N,T,LIM),
-   IF(    SUM(UC_TS_SUM(R,UC_N,S),1)$UC_T_EACH(R,UC_N,T),UC_RHSMAP(UC_N,'EACH','SEVERAL',R,T,ANNUAL) = YES;
-   ELSEIF SUM(UC_TS_SUM(R,UC_N,S),1)$UC_T_SUCC(R,UC_N,T),UC_RHSMAP(UC_N,'SUCC','SEVERAL',R,T,ANNUAL) = YES;
-  ));
-  LOOP((UC_R_EACH(R,UC_N),T,S,LIM)$UC_RHSRTS(R,UC_N,T,S,LIM),
-   IF(    UC_TS_EACH(R,UC_N,S)$UC_T_EACH(R,UC_N,T),UC_RHSMAP(UC_N,'EACH','EACH',R,T,S) = YES;
-   ELSEIF UC_TS_EACH(R,UC_N,S)$UC_T_SUCC(R,UC_N,T),UC_RHSMAP(UC_N,'SUCC','EACH',R,T,S) = YES;
-  ));
+* Redefine UC_T according to current flags
+  OPTION UC_RTSUC < UC_T_SUCC;
   IF(CARD(REG_CUMCST),LOOP((R,T)$NO_RT(R,T),REG_CUMCST(R,YEAR,LL,COSTCAT,CUR,'UP')$SUPERYR(T,LL) = 0));
 *-----------------------------------------------------------------------------
 * Activities and flows
@@ -273,11 +264,11 @@ $IF %REDUCE%==YES %VAR%_ACT.LO(RTP_VINTYR(R,V,T,P),S%SOW%)$(RTP_IRE(R,T,P,IE)*PR
 *-----------------------------------------------------------------------------
 $IF '%RTPX%'==X FIL(T)=FORWARD(T); LOOP(R, FORWARD(T)=FIL(T)$(NOT NO_RT(R,T));
 * Activities and flows
-   VAR_ACT.FX(RTP_VINTYR(R,V,FORWARD(T),P),S)$(PRC_TS(R,P,S)) =                             0;
-   VAR_FLO.FX(RTP_VINTYR(R,V,FORWARD(T),P),C,S)$(RPCS_VAR(R,P,C,S)*RP_FLO(R,P)) =           0;
-   VAR_IRE.FX(RTP_VINTYR(R,V,FORWARD(T),P),C,S,IE)$(RPCS_VAR(R,P,C,S)*RPC_IRE(R,P,C,IE)) =  0;
-   VAR_SIN.FX(RTP_VINTYR(R,V,FORWARD(T),P),C,S)$(RPCS_VAR(R,P,C,S)*RPC_STG(R,P,C)) =        0;
-   VAR_SOUT.FX(RTP_VINTYR(R,V,FORWARD(T),P),C,S)$(RPCS_VAR(R,P,C,S)*RPC_STG(R,P,C)) =       0;
+   VAR_ACT.FX(RTP_VINTYR(R,V,FORWARD(T),P),S)$(PRC_TS(R,P,S)) =                            0;
+   VAR_FLO.FX(RTP_VINTYR(R,V,FORWARD(T),P),C,S)$(RPCS_VAR(R,P,C,S)*RP_FLO(R,P)) =          0;
+*  VAR_IRE.FX(RTP_VINTYR(R,V,FORWARD(T),P),C,S,IE)$(RPCS_VAR(R,P,C,S)*RPC_IRE(R,P,C,IE)) = 0;
+   VAR_SIN.FX(RTP_VINTYR(R,V,FORWARD(T),P),C,S)$(RPCS_VAR(R,P,C,S)*RPC_STG(R,P,C)) =       0;
+   VAR_SOUT.FX(RTP_VINTYR(R,V,FORWARD(T),P),C,S)$(RPCS_VAR(R,P,C,S)*RPC_STG(R,P,C)) =      0;
 * Commodities
    VAR_COMNET.FX(RTCS_VARC(R,FORWARD(T),C,S)) = 0;
    VAR_COMPRD.FX(RTCS_VARC(R,FORWARD(T),C,S)) = 0;
@@ -324,7 +315,7 @@ $IF '%RTPX%'==X LOOP(R, BACKWARD(T)=NO_RT(R,T);
 $ IFI %SPINES%==YES $BATINCLUDE pextlevs.stc "'1'" (BACKWARD)
 $IF '%RTPX%'==X );
 * Reset bounds
-$   BATINCLUDE bndmain.%1 %1 1
+$  BATINCLUDE bndmain.%1 %1 1
 *-----------------------------------------------------------------------------
   );
 $LABEL ENDSTEP

@@ -1,13 +1,13 @@
-$TITLE  TIMES -- VERSION 4.6.9
+$TITLE  TIMES -- VERSION 4.8.6
 *==========================================================================================*
 * INITSYS.MOD has all the fixed system declarations for ETSAP TIMES                        *
 *==========================================================================================*
 $ onlisting ontext
 *===========================================================================================
-*  Copyright (C) 2000-2023 IEA Energy Technology Systems Analysis Programme (IEA-ETSAP).
+*  Copyright (C) 2000-2025 IEA Energy Technology Systems Analysis Programme (IEA-ETSAP).
 *  This software (ETSAP TIMES) is open source: you can redistribute it and/or modify it
-*  under the terms of the GNU General Public License v3.0 (see file LICENSE.txt).
-*  For further information, visit: <http://www.gnu.org/licenses/gpl-3.0.html>.
+*  under the terms of the GNU General Public License v3.0 (see file NOTICE-GPLv3.txt).
+*  For further information, visit: <https://www.gnu.org/licenses/gpl-3.0.html>.
 *
 *  This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
 *  without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
@@ -141,8 +141,8 @@ $ SETGLOBAL MAXSOW 96
   SET UC_ANNUL(UC_NAME) / INVCOST, INVTAX, INVSUB /;
   SET UC_DYNT(UC_NAME) / N, CUMSUM, CUM+, SYNC /;
 
-  SET UC_NUMBER 'Determines way of handling of REG,T and TS'
-    / SEVERAL, SUCC, EACH /;
+  SET UC_NUMBER 'Determines way of handling REG,T and TS'
+    / SEVERAL, SUCC, EACH, DYNAMIC /;
 
   SET UC_PERDS(UC_NAME) / PERIOD, NEWFLO /;
   SET UC_NEWFLO(UC_NAME) / NEWFLO /;
@@ -164,18 +164,18 @@ $ SETGLOBAL MAXSOW 96
 * user should provide name in *.RUN
 $ SET MODEL_NAME    TIMES
 $ SET RUN_NAME      TEST
-* control of whether all 0 lines are dumped in *.PUT files; user provides 0 to NOT print lines containing all 0s (or empty)
+* control of whether all 0 lines are dumped in *.PUT files; user provides 0 to NOT print lines with all 0s (or empty)
   SCALAR DUMP0 /1/, OPTFILEID /1/;
 * user set to 'YES' to activate
-$ SET DEBUG          NO
-$ SET DUMPSOL        NO
-$ SET SOLANS         NO
+$ SET DEBUG         NO
+$ SET DUMPSOL       NO
+$ SET SOLANS        NO
 * user set to 'NO' to not abort when error condition fails
-$ SET ERR_ABORT      YES
+$ SET ERR_ABORT     YES
 * user sets to 'WWW' to activate
-$ SET GAMS_CGI       NO
+$ SET GAMS_CGI      NO
 * user sets to 'NO' if only want to compile
-$ SET SOLVE_NOW      YES
+$ SET SOLVE_NOW     YES
 
 * get list of default units
 $ BATINCLUDE units.def

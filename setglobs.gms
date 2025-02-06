@@ -1,12 +1,14 @@
 *++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-* Copyright (C) 2000-2023 Energy Technology Systems Analysis Programme (ETSAP)
+* Copyright (C) 2000-2024 Energy Technology Systems Analysis Programme (ETSAP)
 * This file is part of the IEA-ETSAP TIMES model generator, licensed
-* under the GNU General Public License v3.0 (see file LICENSE.txt).
+* under the GNU General Public License v3.0 (see file NOTICE-GPLv3.txt).
 *=========================================================================
 * Setglobs initializes System Declarations and Global Controls
 * %1 - optional variable label to jump
 *=========================================================================
 $ SETARGS X1 X2
+* --- FIXT Dump ---
+$ IF NOT SET FIXBOH $KILL REG_FIXT
 * --- DATA Dump ---
 $ IF NOT %DATAGDX%==YES $GOTO SYSD
 $ IF NOT ERRORFREE $GOTO SYSD
@@ -38,6 +40,7 @@ $ LABEL SYSD
   SET RCS_COMTS(R,C,ALL_TS)         'All timeslices at/above the COM_TSL';
   SET RD_AGG(REG,COM)               'Micro aggregated demands' //;
   SET MI_DMAS(REG,COM,COM)          'Micro aggregation map' //;
+  SET NE(ALL_R,COM)                 'Non-energy Demands';
 
 * currency
   SET RDCUR(REG,CUR)              'Discounted currencies by region';
@@ -75,7 +78,7 @@ $ LABEL SYSD
   SET RPC_MARKET(R,P,C,IE)      'Market exchange process indicator'      //;
   SET RPC_PG(R,P,C)             'Commodities in the primary group'       //;
   SET RPC_SPG(R,P,C)            'Commodities in the shadow primary group'//;
-  SET RPCS_VAR(R,P,C,ALL_TS)    'The timeslices at which VAR_FLOs are to be created'//;
+  SET RPCS_VAR(R,P,C,ALL_TS)    'Timeslices at which VAR_FLOs are to be created'//;
   SET RPS_S1(R,P,ALL_TS)        'All timeslices at the PRC_TSL/COM_TSLspg'//;
   SET RPS_S2(R,P,ALL_TS)        'All timeslices at/above PRC_TSL/COM_TSLspg'//;
   SET RPS_PRCTS(R,P,ALL_TS)     'All timeslices at/above the PRC_TSL'    //;
@@ -89,15 +92,17 @@ $ LABEL SYSD
   SET RTPCS_VARF(ALL_REG,ALLYEAR,P,C,ALL_TS) 'The VAR_FLOs control set'  //;
   SET RTP_VARA(R,ALLYEAR,P)     'The VAR_ACT control set'                //;
   SET RTP_VARP(R,T,P)           'RTPs that have a VAR_CAP'               //;
-  SET RTP_VINTYR(ALL_REG,ALLYEAR,ALLYEAR,PRC) 'v/t years when vintaging involved'//;
+  SET RTP_VINTYR(REG,ALLYEAR,ALLYEAR,PRC) 'v/t years according to vintaging'//;
+  SET RTP_VNTBYR(REG,ALLYEAR,PRC,ALLYEAR) 'RTP_VINTYR with years swapped'//;
   SET RTP_TT(R,YEAR,T,PRC)      'Retrofit control periods'               //;
   SET RVP(R,ALLYEAR,P)          'ALIAS(RTP) for Process/time'            //;
   SET RTP_CAPYR(R,YEAR,YEAR,P)  'Capacity vintage years'                 //;
-  SET RTP_CGC(REG,YEAR,P,CG,CG) 'Multi-purpose work set'                //;
+  SET RTP_ISHPR(REG,ALLYEAR,PRC)'Attribute existence indicator'         //;
+  SET RTP_CGC(R,YEAR,P,CG,CG)   'Multi-purpose work set'                //;
   SET RTPS_BD(R,ALLYEAR,P,S,BD) 'Multi-purpose work set'                //;
   SET CG_GRP(REG,PRC,CG,CG)     'Multi-purpose work set'                //;
   SET FSCK(REG,PRC,CG,C,CG)     'Multi-purpose work set'                //;
-  SET FSCKS(REG,PRC,CG,C,CG,S)  'Multi-purpose work set'                //;
+  SET FSCKS(REG,PRC,CG,C,CG,TS) 'Multi-purpose work set'                //;
   SET RPC_IREIO(R,P,C,IE,IO)    'Types of trade flows'                  //;
   SET RPC_LS(R,P,C)             'Load sifting control'                  //;
 * process types
@@ -110,11 +115,19 @@ $ LABEL SYSD
   SET RREG(ALL_REG,ALL_REG) 'Set of paired regions' //;
 
 * cumulatives & UCs
+  SET RHS(SIDE) / RHS /;
+  SET UC_NUMBER / SET.TSLVL /;
   SET UC_ON(ALL_R,UC_N)                          'Active UCs by region' //;
   SET UC_GMAP_C(REG,UC_N,COM_VAR,COM,UC_GRPTYPE) 'Assigning commodities to UC_GRP';
   SET UC_GMAP_P(REG,UC_N,UC_GRPTYPE,PRC)         'Assigning processes to UC_GRP';
-  SET UC_GMAP_U(ALL_R,UC_N,UC_N)                 'Assigning constraints to UC_GRP' //;
+  SET UC_GMAP_U(ALL_R,UC_N,UC_N)                 'Assigning constraints to UC_GRP'//;
+  SET UC_JMAP(J,UC_N,SIDE,REG,T,PRC,UC_GRPTYPE)  'Collecting all processes for GMAP';
   SET UC_DYNBND(UC_N,LIM)                        'Dynamic process-wise UC bounds' //;
+  SET UC_DYNDIR(ALL_R,UC_N,SIDE)                 'Direction of dynamic constraint'//;
+  SET UC_DS(ALL_R,UC_N,TSLVL)                    'Levels of TS-dynamic constraints';
+  SET UC_QAFLO(J,UC_N,SIDE,R,P,C)                'QA_checks for UC FLO/IRE tuples'//;
+  SET UC_RTSUC(ALL_R,ALLYEAR,UC_N)               'RT-map for T_SUCC';
+  SET G_UDS(S,SIDE,S)                            'Timeslice-dynamic candidates';
   SET RC_CUMCOM(REG,COM_VAR,ALLYEAR,ALLYEAR,COM) 'Cumulative commodity PRD/NET';
   SET RPC_CUMFLO(REG,PRC,COM,ALLYEAR,ALLYEAR)    'Cumulative process flows';
 
@@ -123,10 +136,11 @@ $ LABEL SYSD
     RS_BELOW(ALL_REG,TS,TS)  'Timeslices stictly below a node'     //
     RS_BELOW1(ALL_REG,TS,TS) 'Timeslices strictly one level below' //
     RS_TREE(ALL_REG,TS,TS)   'Timeslice subtree'                   //
+    RS_PREV(R,S,S)           'Previous timeslice in parent cycle'  //
     FINEST(R,ALL_TS)         'Set of the finest timeslices in use' //
     PASTMILE(ALLYEAR)        'PAST years that are not MILESYONYR'  //
-    EACHYEAR(ALLYEAR)        'Each year from 1st NCAP_PASTI-Y to last MILESTONYR + DUR_MAX' //
-    EOHYEARS(ALLYEAR)        'Each year from 1st NCAP_PASTI-Y to last MILESTONYR' //;
+    EACHYEAR(ALLYEAR)        'Each year from 1st PASTYEAR to last MILESTONYR + DUR_MAX' //
+    EOHYEARS(ALLYEAR)        'Each year from 1st PASTYEAR to last MILESTONYR' //;
   ALIAS(PASTYEAR,PYR);
   ALIAS(MODLYEAR,V);
 
@@ -140,6 +154,7 @@ $ LABEL SYSD
   SET BDLOX(BD) / LO, FX /;
   SET BDNEQ(BD) / LO, UP /;
   SET RP_PRC(R,P);
+  SET RPG_RED(R,P,CG,IO) //;
   SET RP_GRP(REG,PRC,CG);
   SET RP_CCG(REG,PRC,C,CG);
   SET RP_CGG(REG,PRC,C,CG,CG);
@@ -173,10 +188,11 @@ $ LABEL SYSD
   PARAMETER COEF_ICOM(R,ALLYEAR,T,PRC,C)       'Commodity flow at investment time'      //;
   PARAMETER COEF_OCOM(R,ALLYEAR,T,PRC,C)       'Commodity flow at decommissioning time' //;
   PARAMETER COEF_CIO(R,ALLYEAR,T,P,C,IO)       'Capacity-related commodity in/out flows'//;
-  PARAMETER COEF_PTRAN(REG,ALLYEAR,PRC,CG,C,CG,S) 'Multiplier for EQ_PTRANS'            //;
+  PARAMETER COEF_PTRAN(REG,ALLYEAR,PRC,CG,C,CG,TS) 'Multiplier for EQ_PTRANS'           //;
   PARAMETER COEF_RPTI(R,ALLYEAR,P)             'Repeated investment cycles'             //;
   PARAMETER COEF_ILED(R,ALLYEAR,P)             'Investment lead time'                   //;
   PARAMETER COEF_PVT(R,T)                      'Present value of time in periods'       //;
+  PARAMETER COEF_VNT(R,T,PRC,ALLYEAR)          'COEF_CPT with swapped indexes'          //;
   PARAMETER COEF_CAP(R,ALLYEAR,LL,P)           'Generic re-usable work parameter';
   PARAMETER COEF_RTP(R,ALLYEAR,P)              'Generic re-usable work parameter';
   PARAMETER COEF_RVPT(R,ALLYEAR,PRC,T)         'Generic re-usable work parameter';
@@ -221,13 +237,13 @@ $LABEL RESTOBJ
     RD_SHAR(R,T,C,C)    'Demand aggregation share' //
     RP_AFB(REG,PRC,BD)  'Processes with NCAP_AF by bound type' //
     RS_STG(R,ALL_TS)    'Lead from previous storage timeslice'
-    RS_UCS(R,S,SIDE)    'Lead for TS-dynamic UC'
     RS_STGPRD(R,ALL_TS) 'Number of storage periods for each timeslice'
     RS_STGAV(R,ALL_TS)  'Average residence time for storage activity'
     RS_TSLVL(R,ALL_TS)  'Timeslice levels'
     TS_ARRAY(ALL_TS)    'Array for leveling parameter values across timeslices'
     STOA(ALL_TS)        'ORD Lag from each timeslice to ANNUAL'
-    STOAL(ALL_REG,TS)   'ORD Lag from the LVL of each timeslice to ANNUAL';
+    STOAL(ALL_REG,TS)   'ORD Lag from the LVL of each timeslice to ANNUAL'
+    BDSIG(LIM)          'Bound signum' / LO 1, UP -1 /;
 
 
 *-----------------------------------------------------------------------------
@@ -243,8 +259,8 @@ $LABEL RESTOBJ
   PARAMETER  YKVAL(ALLYEAR,ALLYEAR);
 
 * flags used in extrapolation
-  SET BACKWARD(ALLYEAR) //;
-  SET FORWARD(ALLYEAR)  //;
+  SET BACKWARD(YEAR) //;
+  SET FORWARD(YEAR)  //;
 * DM_YEAR is the union of the sets MODLYEAR and DATAYEAR
   SET DM_YEAR(ALLYEAR)  //;
 
@@ -256,6 +272,7 @@ $LABEL RESTOBJ
     PYR_S(ALLYEAR)       'Residual vintage' //
     MY_TS(ALL_TS)        'Temporary set for timeslices' //
     R_UC(ALL_R,UC_N)     'Temporary set for UCs by region' //
+    R_UCT(ALL_REG,UC_N,ALLYEAR) 'Set for UCs by reg & period' //
     UC_T(UC_N,T)         'Temporary set for UCs by period' //
     RXX(ALL_R,*,*)       'General triples related to a region'
     UNCD1(*)             'Non-domain-controlled set'
@@ -269,11 +286,13 @@ $LABEL RESTOBJ
   SET  NO_ACT(R,P)                    'Process not requiring activity variable'             //;
   SET  RP_PGACT(R,P)                  'Process with PCG consisting of 1 commodity'          //;
   SET  RP_PGFLO(R,P)                  'Process with PCG having COM_FR'                      //;
+  SET  RP_XRED(REG,PRC)               'Process with extended reducable pcg flows'           //;
   SET  RPC_ACT(REG,PRC,CG)            'PG commodity of Process with PCG consisting of 1'    //;
   SET  RPC_AFLO(REG,PRC,CG)           'ACT_FLO residual groups to be handled specially'     //;
   SET  RPC_AIRE(ALL_REG,PRC,COM)      'Exchange process with only one commodity exchanged'  //;
   SET  RPC_EMIS(R,P,COM_GRP)          'Process with emission COM_GRP'                       //;
   SET  FS_EMIS(R,P,COM_GRP,C,COM)     'Indicator for emission related FLO_SUM'              //;
+  SET  FS_EMIT(R,P,COM,COM_GRP,C)     'Indicator for emission related FLO_SUM'              //;
   SET  RC_IOP(R,C,IO,P)               'Processes associated with commodity'                 //;
   SET  RTCS_SING(R,T,C,S,IO)          'Commodity not being consumed'                        //;
   SET  RTPS_OFF(R,T,P,S)              'Process being turned off'                            //;
@@ -338,8 +357,8 @@ $IF NOT "%MX%%SCUM%%SW_STVARS%"=='%X1%%X1%%X1%' $%ControlAbort%: MX / SW_STVARS 
 $SETGLOBAL CAPJD '%X1%' SETGLOBAL CAPWD %X1%
 $IF NOT '%CAPJD%%CAPWD%'=='%X1%%X1%' $%ControlAbort%: CAPxD
 *
-$SETGLOBAL SWX '%X1%' SETGLOBAL SWTX %X1%
-$IF NOT "%SWX%%SWTX%"=='%X1%%X1%' $%ControlAbort%: SWX
+$SETGLOBAL SWX '%X1%' SETGLOBAL SWTX '%X1%' SETGLOBAL VARMAC %X1%
+$IF NOT "%SWX%%SWTX%%VARMAC%"=='%X1%%X1%%X1%' $%ControlAbort%: SWX
 $SETGLOBAL SWX ,'1'
 *
 $SET TMP '%CTST%' SETGLOBAL CTST %X1%
@@ -350,4 +369,5 @@ $SETGLOBAL CTST %TMP%
 $SETGLOBAL SW_TAGS %X1%
 $IF NOT "%SW_TAGS%"=='%X1%' $%ControlAbort%: SW_TAGS
 $IF NOT '%X1%'=='' $SETLOCAL X1 '' GOTO RESET
+$SETGLOBAL VARMAC 0==1
 *-------------------------------------------------------------------------

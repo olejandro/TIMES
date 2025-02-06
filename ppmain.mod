@@ -1,7 +1,7 @@
 *++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-* Copyright (C) 2000-2023 Energy Technology Systems Analysis Programme (ETSAP)
+* Copyright (C) 2000-2025 Energy Technology Systems Analysis Programme (ETSAP)
 * This file is part of the IEA-ETSAP TIMES model generator, licensed
-* under the GNU General Public License v3.0 (see file LICENSE.txt).
+* under the GNU General Public License v3.0 (see file NOTICE-GPLv3.txt).
 *=============================================================================*
 * PPMAIN.MOD oversees all the preprocessor activities
 *   %1 - mod or v# for the source code to be used
@@ -24,7 +24,6 @@
   SET RPS_STG(R,P,S);
   SET RPC_STG(R,P,C) //;
   SET RPC_STGN(R,P,C,IO);
-  SET UC_DYNDIR(ALL_R,UC_N,SIDE) //;
   SET UC_DT(ALL_R,UC_N) //;
   SET RCS(REG,COM,TS);
   SET RC_RC(ALL_REG,COM,ALL_REG,COM);
@@ -41,12 +40,14 @@ $ IF WARNINGS $BATINCLUDE pp_qaput.%1 PUTOUT 0 * 'GAMS Warnings Detected%TMP%'
 * establish initial primary looping control sets indicating what region/process/commodities
 *-----------------------------------------------------------------------------
 * process/commodities in each region, including inter-regional exchanges
+   PRC_ACTUNT(R,P,%PGPRIM%,UNITS_ACT) = NO;
    OPTION RPC_AIRE <  TOP_IRE; RPC_IRE(RPC_AIRE,'IMP') = YES;
    OPTION RPC_AIRE <= TOP_IRE; RPC_IRE(RPC_AIRE,'EXP') = YES;
-   OPTION CLEAR=RPC_AIRE;
+   OPTION CLEAR=RPC_AIRE, PRC_ACT < PRC_ACTUNT;
    RP_IRE(ALL_R,P)$SUM(RPC_IRE(ALL_R,P,C,IE),1) = YES;
    TOP(RP_IRE(R,P),C,'IN')$RPC_IRE(R,P,C,'EXP') = NO;
    TOP(RP_IRE(R,P),C,'OUT')$RPC_IRE(R,P,C,'IMP') = NO;
+   TOP(RPG_RED(PRC_ACT(R,P),C,IO))$(COM_TMAP(R,'ENV',C)+RP_IRE(R,P)) = YES;
 * process/commodities in each region
    RPC(R,P,C)$(SUM(TOP(R,P,C,IO),1) + SUM(RPC_IRE(R,P,C,IE),1)) = YES;
    RC(R,C)$SUM(RPC(R,P,C),1) = YES;
@@ -54,8 +55,8 @@ $ IF WARNINGS $BATINCLUDE pp_qaput.%1 PUTOUT 0 * 'GAMS Warnings Detected%TMP%'
    RP_FLO(RP)$(NOT RP_IRE(RP)) = YES;
 
 * establish PCG, checking for missing ones
-   PRC_ACTUNT(R,P,%PGPRIM%,UNITS_ACT) = NO;
-   OPTION RP_PG < PRC_ACTUNT; PRC_ACT(RP)$(NOT SUM(RP_PG(RP,CG),1))=YES;
+   OPTION RP_PG < PRC_ACTUNT, CLEAR=RPG_RED, CLEAR=PRC_ACT;
+   PRC_ACT(RP)$(NOT SUM(RP_PG(RP,CG),1))=YES;
    IF(CARD(PRC_ACT),
       TRACKPC(PRC_ACT(R,P),C)$((NOT COM_TMAP(R,'ENV',C)+COM_TMAP(R,'FIN',C))$TOP(R,P,C,'OUT'))=YES;
       PRC_ACT(RP)$(SUM(TRACKPC(RP,C),1) NE 1)=NO; RP_PG(TRACKPC(PRC_ACT,C))=YES;
@@ -145,7 +146,7 @@ $IFI %OBJ%==MOD M(T) = 0;
     IF(ALTOBJ=1,ALTOBJ=1$SUM(T,M(T) NE YEARVAL(T)));
 
 * establish 1st/last run year
-    MIYR_1(MILESTONYR)$(ORD(MILESTONYR) = 1) = YES;
+    MIYR_1(T)$(ORD(T) = 1) = YES;
     IF(ALTOBJ,
 * If alternate objective, set B and E, D and M:
        E(T(TT-1)) = FLOOR((YEARVAL(T)+YEARVAL(TT))/2); B(T(TT+1)) = E(TT)+1;
@@ -154,7 +155,7 @@ $IFI %OBJ%==MOD M(T) = 0;
        D(T)=E(T)-B(T)+1; M(T) = YEARVAL(T));
 *V0.5c 980904 - set 1st value to B not milestone itself
     MIYR_V1 = SMIN(MIYR_1, B(MIYR_1));
-    MIYR_VL = SMAX(MILESTONYR$(ORD(MILESTONYR) = CARD(MILESTONYR)), E(MILESTONYR));
+    MIYR_VL = SMAX(T$(ORD(T) = CARD(T)), E(T));
 $IFI '%OBLONG%'==YES IF(MIYR_V1+SUM(T,E(T)+1-B(T))-MIYR_VL NE 1,ABORT "Inconsistent periods - cannot use OBLONG.");
     LOOP(MIYR_1(LL),PASTYEAR(LL-(YEARVAL(LL)-MIYR_V1+1)) = YES);
 * Set LEADs and LAGs for periods
@@ -253,17 +254,11 @@ $ IFI %INTEXT_ONLY% == YES $EXIT
     RT_PP(R,T) = YES;
 
 * maximum NCAP_ILED+NCAP_TLIFE+NCAP_DLAG+NCAP_DLIFE+NCAP_DELIF
-    DUR_MAX=G_TLIFE;
-    LOOP(RVP(R,T,P)$((NCAP_ILED(RVP)+NCAP_TLIFE(RVP)+NCAP_DLAG(RVP)+NCAP_DLIFE(RVP)+NCAP_DELIF(RVP)) GT DUR_MAX),
-         DUR_MAX=(NCAP_ILED(RVP)+NCAP_TLIFE(RVP)+NCAP_DLAG(RVP)+NCAP_DLIFE(RVP)+NCAP_DELIF(RVP));
-    );
+    DUR_MAX=MAX(G_TLIFE,SMAX(RVP(R,T,P),NCAP_ILED(RVP)+NCAP_TLIFE(RVP)+NCAP_DLAG(RVP)+NCAP_DLIFE(RVP)+NCAP_DELIF(RVP)));
 
-* establish each year in OBJ
-*   years before 1st period
+* add PASTYEAR to EOHYEARS before 1st period
     EOHYEARS(PYR)$(YEARVAL(PYR)<MINYR) = YES;
-
-* UR 10/04/00
-* EACHYEAR goes until (MIYR_VL+DUR_MAX)
+* establish EACHYEAR: goes until (MIYR_VL+DUR_MAX)
     EACHYEAR(PASTYEAR) = YES;
     EACHYEAR(ALLYEAR)$((YEARVAL(ALLYEAR) >= MINYR) * (YEARVAL(ALLYEAR) <= (MIYR_VL+DUR_MAX))) = YES;
 
@@ -274,16 +269,23 @@ $ IFI %INTEXT_ONLY% == YES $EXIT
 * establish rest of primary looping control sets indicating what region/process/commodities
 *-----------------------------------------------------------------------------
 * expand individual commodities in own CG
+    MI_DMAS(COM_GMAP(RC,C)) = YES; MI_DMAS(R,C,C) = NO;
+    IF(CARD(MI_DMAS),OPTION DEM<TOP; PUTGRP=0;
+      LOOP(MI_DMAS(DEM(R,C),COM),
+$       BATINCLUDE pp_qaput.%1 PUTOUT PUTGRP 09 'Commodity group found in topology violating its integrity'
+        PUT QLOG ' SEVERE ERROR  - Group removed from topology:   R=',%RL%,' CG=',C.TL);
+      OPTION DEM<=MI_DMAS; RC(DEM)=NO; RPC(R,P,C)$DEM(R,C)=NO; OPTION CLEAR=MI_DMAS,CLEAR=DEM);
     COM_GMAP(RC(R,C),C) = YES;
+    NRG_GMAP(R,NRG_GRID(NRG_TYPE),C) $= NRG_TMAP(R,NRG_TYPE,C);
 
 * UR 02/22/99 PRC_CG is now internally generated
     PRC_CG(RPC)   = YES;
     PRC_CG(RP_PG) = YES;
 
-* Add aggregate commodities into RC:
-  OPTION MI_DMAS<=COM_AGG,FIN<COM_TMAP;
-  LOOP(MI_DMAS(R,COM,C)$(FIN(R,COM)$FIN(R,C)),RC(R,C)=YES);
-  OPTION CLEAR=FIN,CLEAR=MI_DMAS;
+* Add aggregate commodities into RC
+    OPTION MI_DMAS<=COM_AGG,FIN<COM_TMAP;
+    LOOP(MI_DMAS(R,COM,C)$(FIN(R,COM)$FIN(R,C)),RC(R,C)=YES);
+    OPTION CLEAR=FIN,CLEAR=MI_DMAS;
 
 * determination of capacity related flows - initialization
     RPC_CAPFLO(RTP,C)$(NCAP_ICOM(RTP,C)+NCAP_OCOM(RTP,C)) = YES;
@@ -412,8 +414,8 @@ $     BATINCLUDE pp_off.%1 COM_OFF C "" "RTC(R,T,C)$(" NO
 
 * identify shadow group timeslice level
 * For LOAD processes, take the maximum TSLVL
-  LOOP((RTC(R,T,C),S)$COM_FR(R,T,C,S),TRACKC(R,C) = YES);
-  LOOP(COM_TSL(TRACKC(R,C),'ANNUAL'), TRACKP(RP_FLO(R,P))$RPC_PG(R,P,C) = YES);
+  OPTION DEM < COM_FR;
+  LOOP(COM_TSL(DEM(R,C),'ANNUAL'),TRACKP(RP_FLO(R,P))$RPC_PG(R,P,C) = YES);
   PRC_YMAX(RP(R,P)) = SMAX((RPC_SPG(R,P,C),COM_TSL(R,C,TSL)),TSLVLNUM(TSL));
   PRC_YMAX(TRACKP(R,P)) = SMAX((RPC(R,P,C),COM_TSL(R,C,TSL)),TSLVLNUM(TSL));
   PRC_YMAX(RP_STG) = 0;
@@ -429,9 +431,10 @@ $     BATINCLUDE pp_off.%1 COM_OFF C "" "RTC(R,T,C)$(" NO
 * save the finer of the PRC_TS and the finest commodity in the shadow primary
     RPS_S1(RP(R,P),S)$(TS_ARRAY(S) = PRC_YMAX(R,P)) = YES;
     RPS_S2(RPS_S1(R,P,S))$(NOT RP_SGS(R,P)) = YES;
-* identify all TS at/above the PRC_TSL
   );
+* identify all TS at/above the PRC_TSL
   LOOP(TS_GROUP(R,TSL,S), RPS_PRCTS(R,P,TS)$(TS_MAP(R,TS,S)*PRC_TS(R,P,S)) = YES);
+  RP_PGFLO(TRACKP)$(PRC_YMAX(TRACKP)>1) = YES;
 
 *-----------------------------------------------------------------------------
 * Establish the main control set for generation or not of a VAR_FLO/IRE for
@@ -453,7 +456,7 @@ $     BATINCLUDE pp_off.%1 COM_OFF C "" "RTC(R,T,C)$(" NO
   RPCS_VAR(RPC(TRACKP(R,P),C),S)$(RPS_S1(R,P,S)$(NOT RPC_PG(R,P,C)+RPC_SPG(R,P,C))) = YES;
 * Remove timeslices turned off by COM_TS
   RPCS_VAR(R,P,C,S)$RCS(R,C,S) = NO;
-  OPTION CLEAR=PRC_YMAX,CLEAR=RCS,CLEAR=PRC_ACT,CLEAR=TRACKC,CLEAR=TRACKP,CLEAR=TRACKPC;
+  OPTION CLEAR=PRC_YMAX,CLEAR=RCS,CLEAR=PRC_ACT,CLEAR=TRACKP,CLEAR=TRACKPC;
 
 *-----------------------------------------------------------------------------
 * adjustment of life and construction lead if below threshold
@@ -479,10 +482,10 @@ $      BATINCLUDE pp_qaput.%1 PUTOUT PUTGRP 01 'NCAP_TLIFE out of feasible range
    NCAP_ILED(RTP(R,PHYR,P)) = NCAP_ILED(RTP)+COEF_RTP(RTP)+EPS;
 * Checks for host processes of refits
    SET PRC_RCAP //; PARAMETER PRC_REFIT //;
-   PRC_REFIT(R,P,PRC)$PRC_REFIT(R,P,PRC)=MAX(ABS(ROUND(PRC_REFIT(R,P,PRC))),ABS(ROUND(PRC_REFIT(R,P,P))))*MOD(ROUND(PRC_REFIT(R,P,PRC)),2);
-   LOOP((RP(R,PRC),P)$PRC_REFIT(RP,P),IF(PRC_REFIT(RP,P)<-3,NCAP_ELIFE(RTP(R,T,P))$(NCAP_ELIFE(RTP)<1)=NCAP_TLIFE(RTP);
-      NCAP_TLIFE(RTP(R,T,P))=MAX(NCAP_TLIFE(R,T,PRC)+NCAP_ILED(R,T,PRC)-1,NCAP_TLIFE(RTP))));
-   LOOP((RP(R,PRC),P)$((NOT PRC_RCAP(RP))$PRC_REFIT(RP,P)),RTP_OFF(R,T,P)=YES);
+   PRC_REFIT(R,P,PRC)$PRC_REFIT(R,P,PRC)=MAX(ABS(ROUND(PRC_REFIT(R,P,PRC))),MIN(6,ABS(MAX(ROUND(PRC_REFIT(R,P,P)),-1)*2)))*MOD(ROUND(PRC_REFIT(R,P,PRC)),2);
+   LOOP((RP(R,PRC),P)$PRC_REFIT(RP,P),IF(NOT PRC_RCAP(RP),RTP_OFF(R,T,P)=YES);
+     IF(PRC_REFIT(RP,P)<-4,NCAP_ELIFE(RTP(R,T,P))$(NCAP_ELIFE(RTP)<1)=NCAP_TLIFE(RTP);
+       NCAP_TLIFE(RTP(R,T,P))=MAX(NCAP_TLIFE(R,T,PRC)+NCAP_ILED(R,T,PRC)-1,NCAP_TLIFE(RTP))));
 
 *-----------------------------------------------------------------------------
 * capacity transfer v = year of installation and thus data values where
@@ -530,7 +533,7 @@ $    BATINCLUDE pp_qaput.mod PUTOUT PUTGRP IFQ 'Inconsistent CAP_BND(UP/FX) defi
    RVP(RTP)$((CAP_BND(RTP,'UP')=0)$CAP_BND(RTP,'UP')) = YES;
    LOOP(T, NCAP_BND(R,TT,P,'UP')$(RTP_CPTYR(R,TT,T,P)$RVP(R,T,P)) = EPS);
    RVP(RTP_VARP)=NO; CAP_BND(RVP,BD) = 0;
-   CAP_BND(RTP,BD)$MAPVAL(CAP_BND(RTP,BD)) = 0;
+   CAP_BND(RTP,BDLOX)$MAPVAL(CAP_BND(RTP,BDLOX)) = 0;
 * Check whether both UP and LO bounds (then it pays to have VAR_CAP)
    RTP_VARP(RTP(R,T,P))$(CAP_BND(RTP,'UP')*CAP_BND(RTP,'LO')) = YES;
    PUTGRP=0;
@@ -541,7 +544,7 @@ $    BATINCLUDE pp_qaput.mod PUTOUT PUTGRP 1 'Inconsistent CAP_BND(UP/LO/FX) def
 *-----------------------------------------------------------------------------
 * turn off RTP/CPTYR if no new investment & installed capacity no longer available
     LOOP(BDUPX(BD),RTP_OFF(RTP)$((NCAP_BND(RTP,BD)=0)$NCAP_BND(RTP,BD)) = YES);
-    NO_RVP(RTP_OFF(R,T,P)) = YES;
+    NO_RVP(RTP_OFF(R,T,P))$(NOT NCAP_PASTI(R,T,P)) = YES;
     LOOP(T, NO_RVP(R,TT,P)$(RTP_CPTYR(R,T,TT,P)$(NOT RTP_OFF(R,T,P))) = NO);
     LOOP(PYR(V), NO_RVP(R,T,P)$(RTP_CPTYR(R,V,T,P)$NCAP_PASTI(R,V,P)) = NO);
     RTP(NO_RVP) = NO;
@@ -586,31 +589,32 @@ $        BATINCLUDE pp_qaput.%1 PUTOUT PUTGRP 01 'Flow OFF TS level below VARiab
 * Add leading milestones into RTP if/when simulated vintages
 $IF DEFINED PRC_SIMV LOOP(T,NO_RVP(R,TT-1,P)$(RTP_CPTYR(R,TT,T,P)$PRC_SIMV(R,P))=YES); NO_RVP(RTP(R,T,P))=NO; RTP(NO_RVP)=YES;
 *-----------------------------------------------------------------------------
+* Remove commodity from PG if PRC_ACTFLO flagged non-interpolated, as bad
+   RPC_PG(R,P,C)$((NOT RP_PG(R,P,C))$(ROUND(PRC_ACTFLO(R,'0',P,C)<0))) = NO;
 * Save original non-PG PRC_ACTFLO groups
    RPC_PG(RPC_STG) = YES;
    RP_STD(RP_FLO(RP))$(NOT RP_STG(RP)) = YES;
    OPTION RPC_ACT <= PRC_ACTFLO;
-   RPC_ACT(R,P,C)$(RPC_PG(R,P,C)+(NOT RPC(R,P,C))+RP_STG(R,P)) = NO;
+   RPC_ACT(R,P,C)$(RPC_PG(R,P,C)+(NOT RPC(R,P,C)$RP_STD(R,P))) = NO;
    CHP(RP(R,P)) $= PRC_MAP(R,'CHP',P);
+
 *-----------------------------------------------------------------------------
 * establishment PRC_CAPACT/ACTFLO from PRC_CAPUNT/ACTUNT/COM_UNIT & determine INOUT(r,p)
 *-----------------------------------------------------------------------------
-   PRC_CAPACT(RP(R,P))$(NOT PRC_CAPACT(R,P)) = 1;
+   PRC_CAPACT(RP)$(NOT PRC_CAPACT(RP)) = 1;
 * Copy PRC_ACTFLO from PG to individual commodities in PG, allowing reserved word %PGPRIM%
-   PRC_ACTFLO(RTP(R,V,P),C)$((NOT PRC_ACTFLO(R,V,P,C))$RPC_PG(R,P,C)) $= SUM(RP_PG(R,P,CG),PRC_ACTFLO(R,V,P,CG));
-   PRC_ACTFLO(RTP(R,V,P),C)$((NOT PRC_ACTFLO(R,V,P,C))$RPC_PG(R,P,C)) $= PRC_ACTFLO(R,V,P,%PGPRIM%);
-   PRC_ACTFLO(RTP(R,V,P),C)$((NOT PRC_ACTFLO(R,V,P,C))$RPC_PG(R,P,C)) = 1;
-
-*-----------------------------------------------------------------------------
-* Extensions after establishing RPCS_VAR and PRC_CAPACT but before levelising
-$ BATINCLUDE main_ext.mod pp_prelv %EXTEND%
-*-----------------------------------------------------------------------------
-* Make some QA checks for FLO_SHAR
-$ BATINCLUDE pp_qafs.mod mod
-*-----------------------------------------------------------------------------
+   PRC_ACTFLO(RTP(R,V,P),C)$((NOT PRC_ACTFLO(RTP,C))$RPC_PG(R,P,C)) $= SUM(RP_PG(R,P,CG),PRC_ACTFLO(R,V,P,CG));
+   PRC_ACTFLO(RTP(R,V,P),C)$((NOT PRC_ACTFLO(RTP,C))$RPC_PG(R,P,C)) $= PRC_ACTFLO(RTP,%PGPRIM%);
+   PRC_ACTFLO(RTP(R,V,P),C)$((NOT PRC_ACTFLO(RTP,C))$RPC_PG(R,P,C)) = 1;
 * RP_PGACT signifies that activity can be substituted for the primary flow
    RP_PGACT(RP_FLO(R,P))$(SUM(RPC_PG(R,P,C),1) EQ 1) = YES;
    RP_PGACT(RP_IRE(R,P))$(SUM(RPC_IRE(RPC_PG(R,P,C),IE),1) EQ 1) = YES;
+
+*-----------------------------------------------------------------------------
+* Extensions after establishing RPCS_VAR and PRC_CAPACT but before levelising
+$  BATINCLUDE main_ext.mod pp_prelv %EXTEND%
+* Make various QA checks for FLO_SHAR
+$  BATINCLUDE pp_qafs.mod mod
 
 *-----------------------------------------------------------------------------
 * setup and apply (some) SHAPE/MULTI
@@ -641,13 +645,12 @@ $   BATINCLUDE filparam MULTI 'J,' '' ",'','','','',''" LL EOHYEARS 'NO$' ''
 * commodity release always in next year if no time provided but release
     NCAP_DLIFE(RTP(R,T,P))$((NOT NCAP_DLIFE(RTP))$SUM(RPC(R,P,C)$NCAP_OCOM(RTP,C),1)) = 1;
     NCAP_DELIF(RTP(R,T,P))$(NOT NCAP_DELIF(RTP))$= NCAP_DLIFE(RTP);
-*V0.5a - if investment requires commodity and has a leadtime, set
-*        commodity time = lead if not provided
+* if investment requires commodity and has a leadtime, set commodity time = lead, if not provided
     NCAP_CLED(RTP(R,T,P),C)$((NOT NCAP_CLED(RTP,C))$NCAP_ICOM(RTP,C)) = COEF_ILED(RTP);
-* CHP plants
+* defaults for CHP plants
     NCAP_BPME(RTP(R,V,P))$((NOT NCAP_BPME(RTP))$NCAP_CDME(RTP)$CHP(R,P)) = 1;
     NCAP_CHPR(RTP(R,V,P),'UP')$((NOT SUM(LIM$NCAP_CHPR(RTP,LIM),1))$CHP(R,P)) = 1;
-*V0.9c init storage efficiency if not provided
+* set default storage efficiency if not provided
     LOOP(RP_STG(R,P)$(NOT SUM(RTP(R,T,P)$STG_EFF(RTP),1)), STG_EFF(RTP(R,V,P)) = 1);
 
 *-----------------------------------------------------------------------------
@@ -697,7 +700,7 @@ $   BATINCLUDE pp_lvlfc.mod COM_BPRICE C COM_TS ',CUR' ",'0','0','0'" ALL_TS DAT
 $   BATINCLUDE pp_lvlfc.mod COM_BQTY   C COM_TS '' ",'0','0','0','0','0'" ALL_TS '' RC(R,C) 1
 
 * Defaults for infrastructure efficiency and seasonal fraction
-    OPTION RCS < COM_IE;
+    OPTION RCS < COM_IE, CLEAR=RP_PGFLO;
     COM_IE(RTCS_VARC(R,T,C,S))$(NOT RCS(R,C,S)) = 1;
 *GG* 010406 - sum up COM_FRs below on a seasonal level so RTCS_TSFR set below
 * Get the timeslices where COM_FR has been given
@@ -801,7 +804,7 @@ $   BATINCLUDE pp_lvlfc.mod FLO_DELIV 'P,C' RPCS_VAR ',CUR' ",'0','0'" ALL_TS DA
 $   BATINCLUDE pp_lvlfc.mod FLO_SUB   'P,C' RPCS_VAR ',CUR' ",'0','0'" ALL_TS DATAYEAR RPC(R,P,C) '' '' N
 $   BATINCLUDE pp_lvlfc.mod FLO_TAX   'P,C' RPCS_VAR ',CUR' ",'0','0'" ALL_TS DATAYEAR RPC(R,P,C) '' '' N
 $   BATINCLUDE pp_lvlfc.mod FLO_PKCOI 'P,C' RPCS_VAR '' ",'0','0','0'" ALL_TS T RTP(R,T,P)
-$   BATINCLUDE pp_lvlfc.mod ACT_FLO   'P'   RPS_S1   '' ",'0','0','0'" ALL_TS V RTP(R,V,P) 0 ',C' N
+$   BATINCLUDE pp_lvlfc.mod ACT_FLO   'P'   RPS_S1   '' ",'0','0','0'" ALL_TS V RTP(R,V,P) 0 ',C' 0 $STOA(S)
 
 *GG*PKCOI defaults to 1
     LOOP((RPC(R,P,C),COM_GMAP(COM_PEAK(R,CG),C))$(TOP(RPC,'IN')+RPC_IRE(RPC,'EXP')),
@@ -848,16 +851,15 @@ $   BATINCLUDE pp_lvlif.mod %1
 * Preprocess market-based trade
 *-----------------------------------------------------------------------------
 * Set endogenous trade indicators
-  IF(CARD(RXX) GT 0, OPTION CLEAR=RXX);
+  OPTION CLEAR=RXX;
   LOOP(TOP_IRE(R,C,REG,COM,P),RXX(R,C,P) = YES; RPC_IREIO(REG,P,COM,'IMP','IN') = YES);
   RPC_IREIO(R,P,C,'EXP','IN')$RXX(R,C,P) = YES;
   RPC_IREIO(RPC_IRE(R,P,C,IE),'OUT')$(NOT RPC_IREIO(R,P,C,IE,'IN')) = YES;
   PRC_MAP(R,'DISTR',P)$PRC_MAP(R,'CORR',P) = YES;
   IRE_DIST(RP_IRE(R,P))$PRC_MAP(R,'DISTR',P) = YES;
 
-* Define a marketplace whenever there are several import regions
+* Define a marketplace whenever imports to several regions, or an intermediate region between two other regions
   LOOP(RXX(R,C,P)$(SUM(TOP_IRE(R,C,REG,COM,P),1) GT 1),RPC_MARKET(R,P,C,'EXP') = YES);
-* Define a marketplace whenever there is an intermediate region between two other regions
   RXX(R,C,P)$IRE_DIST(R,P) = NO;
   LOOP(TOP_IRE(REG,COM,RXX(R,C,P))$(NOT SUM(COM1$TOP_IRE(R,C,REG,COM1,P),1)),RPC_MARKET(R,P,C,'EXP') = YES);
 
@@ -927,14 +929,6 @@ $      BATINCLUDE pp_qaput.%1 PUTOUT PUTGRP 01 'Unsupported diverging trade topo
        IRE_FLO(RTP(R,V,P),C,REG,COM,S)$PRC_TS(REG,P,S) = 1));
 
 *-----------------------------------------------------------------------------
-* determination of vintaging for processes
-*-----------------------------------------------------------------------------
-* vintaging period control such that v=t if no vintaging, otherwise = CPT periods
-    RTP_VINTYR(RTP_CPTYR(R,V,T,P))$PRC_VINT(R,P)= YES;
-*V0.5a 980810 - always variables within availability of process
-    RTP_VINTYR(R,T,T,P)$((NOT PRC_VINT(R,P)) * RTP(R,T,P) * SUM(V,RTP_CPTYR(R,V,T,P))) = YES;
-
-*-----------------------------------------------------------------------------
 * initialize the commodity balance equation type
 *   - equality (MAT,ENV,FIN)
 *   - prodution >= consumption (NRG,DEM)
@@ -948,8 +942,7 @@ $      BATINCLUDE pp_qaput.%1 PUTOUT PUTGRP 01 'Unsupported diverging trade topo
     FIN(RC(R,C))$COM_TMAP(R,'FIN',C) = YES;
 
 * free up if conservation or free energy type, unless provided by the user
-*GG* need to add code to INITSYS/MOD_EQUA/EQMAIN to handle =N= (e.g. what is bound),
-*    ignored at the moment with no equation created
+*GG* need to add code to handle =N= balances, ignored at the moment with no equation created
     TRACKC(RC) = YES;
     LOOP(LIM,TRACKC(R,C)$COM_LIM(R,C,LIM) = NO);
     COM_LIM(TRACKC(NRG(R,C)),'UP')$(NRG_TMAP(R,'CONSRV',C) + NRG_TMAP(R,'FRERENEW',C)) = YES;
@@ -971,15 +964,15 @@ $  IFI %MICRO%==YES COM_LIM(RC(DEM),BD)$(NOT COM_LIM(RC,'N')) = NOT BDNEQ(BD);
 * identify regions trading
     OPTION RREG <= TOP_IRE; OPTION CLEAR=RXX;
     LOOP(RREG(ALL_R,ALL_REG), Z=1;
-* if all regions working with same time-slices set to 1,
-*  assumption is if have one direction then have to other too
+* if all regions working with same time-slices, set to 1
+*  assumption is if have one direction then have the other too
        LOOP(TSLVL$Z,
          Z$Z = PROD(TS_GROUP(ALL_R,TSLVL,S),TS_GROUP(ALL_REG,TSLVL,S));
          Z$Z = PROD(TS_GROUP(ALL_REG,TSLVL,S),TS_GROUP(ALL_R,TSLVL,S));
          IF(Z, RXX(ALL_R,S,ALL_REG)$TS_GROUP(ALL_R,TSLVL,S) = YES)));
     RXX(ALL_R,S,ALL_REG)$RXX(ALL_REG,S,ALL_R) = YES;
     IRE_TSCVT(RXX(ALL_R,S,ALL_REG),S)$(NOT IRE_TSCVT(ALL_R,S,ALL_REG,S)) = 1;
-* if regions working with commodities in the same units set convert to 1,
+* for the conversion of traded commodities, set default to 1
 *  assumption is if have one direction then have the other too
     OPTION RC_RC < IRE_CCVT;
     IRE_CCVT(RC_RC(RC,R,C))$(NOT IRE_CCVT(RC_RC)) = 1/IRE_CCVT(R,C,RC);
@@ -1103,11 +1096,11 @@ $ BATINCLUDE prepxtra.mod UCINT
 *-----------------------------------------------------------------------------
 * Levelized UC_RHSRTS
   LOOP(T,UC_TSL(R,UC_N,SIDE,TSL)$UC_T_SUCC(R,UC_N,T)=NO);
-  OPTION R_UC<UC_TSL, MREG<R_UC;
-  UC_TSL(R_UC,'LHS',TSL) $= UC_TSL(R_UC,'RHS',TSL);
+  OPTION UC_DS < UC_TSL, R_UC < UC_DS, MREG < R_UC;
+  UC_TSL(R_UC,'LHS',TSL) $= UC_DS(R_UC,TSL);
   LOOP((RJLVL(J,R(MREG),TSLVL),TSL)$(ORD(TSL)>ORD(TSLVL)),
-    LOOP(TS_GROUP(R,TSLVL,TS),UC_RHSRTS(R_UC(R,UCN),T,S,L)$((NOT UC_RHSRTS(R_UC,T,S,L))$UC_TSL(R_UC,'LHS',TSL)) $= UC_RHSRTS(R_UC,T,TS,L)$RS_BELOW(R,TS,S)$TS_GROUP(R,TSL,S)));
-  LOOP(UC_TSL(R_UC(R,UCN),'LHS',TSL)$SUM(UC_TS_EACH(R_UC,S),1),UC_RHSRTS(R_UC,T,S,L)$((NOT UC_TS_EACH(R_UC,S))$TS_GROUP(R,TSL,S))=0);
+    LOOP(TS_GROUP(R,TSLVL,TS),UC_RHSRTS(R_UC(R,UCN),T,S,L)$((NOT UC_RHSRTS(R_UC,T,S,L))$UC_DS(R_UC,TSL)) $= UC_RHSRTS(R_UC,T,TS,L)$RS_BELOW(R,TS,S)$TS_GROUP(R,TSL,S)));
+  LOOP(UC_DS(R_UC(R,UCN),TSL)$SUM(UC_TS_EACH(R_UC,S),1),UC_RHSRTS(R_UC,T,S,L)$((NOT UC_TS_EACH(R_UC,S))$TS_GROUP(R,TSL,S))=0);
   UC_TS_EACH(R_UC,S) = NO; UC_ATTR(R_UC,SIDE,UC_GRPTYPE,UC_NAME(TSL)) = NO;
 * Support for the obsolete
   UC_RHS(UC_N,L)$(NOT UC_RHS(UC_N,L)) $= UC_RHSS(UC_N,'ANNUAL',L);
@@ -1147,7 +1140,7 @@ $ BATINCLUDE prepxtra.mod UCINT
   OPTION CLEAR=MREG,CLEAR=UC_DT;
   LOOP(T,UC_DT(R,UC_N)$(UC_TS_EACH(R,UC_N,'ANNUAL')$UC_T_SUM(R,UC_N,T)) = YES);
   UC_TS_SUM(UC_DT,ANNUAL) = YES; UC_TS_EACH(UC_TS_SUM(R,UC_N,ANNUAL)) = NO;
-  UC_DT(R,UC_N)$UC_TSL(R,UC_N,'LHS','ANNUAL') = NO;
+  UC_DT(R_UC)$UC_DS(R_UC,'ANNUAL') = NO;
   UC_ATTR(UC_DT,SIDE,UC_GRPTYPE,'PERIOD')$(NOT SAMEAS(UC_GRPTYPE,'NCAP')) = NO;
 
   UC_ATTR(R,UC_N,SIDE,UC_GRPTYPE,UC_COST) $= SUM(UC_MAPCOST(UC_COST,UC_NAME),UC_ATTR(R,UC_N,SIDE,UC_GRPTYPE,UC_NAME));
@@ -1165,40 +1158,42 @@ $ BATINCLUDE prepxtra.mod UCINT
   UC_ATTR(R,UC_N,'RHS',UC_GRPTYPE,'N')$UC_ATTR(R,UC_N,'RHS',UC_GRPTYPE,'SYNC') = YES;
 * Remove RHS from DYNDIR if LHS present:
   UC_DYNDIR(R,UC_N,'RHS')$UC_DYNDIR(R,UC_N,'LHS') = NO;
-  UC_TSL(UC_DYNDIR(R_UC,'RHS'),TSL)$UC_TSL(R_UC,'LHS',TSL)=YES; UC_DYNDIR(R_UC,SIDE)=NO;
-* Add implicit T_SUCC and remove T_EACH whenever T_SUCC:
-  LOOP(SIDE, UC_T_SUCC(UC_T_EACH(R,UC_N,T))$UC_DYNDIR(R,UC_N,SIDE) = YES);
+  UC_TSL(UC_DYNDIR(R_UC,'RHS'),TSL)$UC_DS(R_UC,TSL)=YES; UC_DYNDIR(R_UC,SIDE)=NO;
+* Add implicit T_SUCC and remove T_EACH whenever T_SUCC
+  UC_T_SUCC(UC_T_EACH(R,UCN,T)) $= SUM(UC_DYNDIR(R,UCN,SIDE),1);
+  UC_T_SUCC(UC_T_EACH(R,UCN,T))$UC_R_SUM(R,UCN) $= SUM(UC_T_SUCC(UC_R_SUM(REG,UCN),T),1);
   UC_T_EACH(UC_T_SUCC) = NO;
-* Remove last MILESTONYR from UC_T_SUCC unless GROWTH constraint is RHS-based:
-  UC_T_SUCC(UC_T_SUCC(R,UC_N,T))$(ORD(T) EQ CARD(T)) = UC_DYNDIR(R,UC_N,'RHS');
-  LOOP(R$SUM(UC_TSL(R_UC,'RHS',TSL),1),RS_UCS(R,S,'RHS') = RS_STG(R,S));
+* Remove last MILESTONYR from UC_T_SUCC unless RHS-based:
+  UC_T_SUCC(UC_T_SUCC(R,UC_N,T))$(ORD(T) = CARD(T)) = UC_DYNDIR(R,UC_N,'RHS');
+  RS_PREV(R,S,S--RS_STG(R,S)) $= RS_TSLVL(R,S); G_UDS(S,'LHS',S) = YES;
+  LOOP(R$SUM(UC_TSL(R,UCN,'RHS',TSL),1),G_UDS(S,'RHS',TS)$RS_PREV(R,S,TS)=YES);
 
 *-----------------------------------------------------------------------------
 * Assigning commodities and processes to UC group map sets
-
   SET UC_MAP_FLO(UC_N,SIDE,ALL_REG,PRC,COM) 'Assigning processes to UC_GRP';
   SET UC_MAP_IRE(UC_N,ALL_REG,PRC,COM,IE)   'Assigning processes to UC_GRP';
 
 * FLO / IRE / COM
   OPTION UC_MAP_FLO < UC_FLO;
+  UC_QAFLO('1',UC_MAP_FLO(UCN,SIDE,RP_IRE(R,P),C))=YES;
   UC_CAPFLO(UC_N,SIDE,R,P,C)$(NOT UC_MAP_FLO(UC_N,SIDE,R,P,C)) = NO;
   UC_MAP_FLO(UC_N,SIDE,RP_IRE,C) = NO;
   OPTION UC_MAP_IRE < UC_IRE;
+  UC_QAFLO('2',UCN,'LHS',RP_FLO,C)$=SUM(UC_MAP_IRE(UCN,RP_FLO,C,IE),1);
   UC_MAP_IRE(UC_N,R,P,C,IE)$(NOT RPC_IRE(R,P,C,IE)) = NO;
   OPTION UC_GMAP_C < UC_COM;
   UC_ATTR(R,UCN,SIDE,UC_GRPTYPE,UC_DYNT)$UC_ATTR(R,UCN,SIDE,'COMCON',UC_DYNT)$=SUM(UC_GMAP_C(R,UCN,COM_VAR,C,'COMCON')$COV_MAP(COM_VAR,UC_GRPTYPE),1);
 
 * ACT / CAP / NCAP
-  OPTION CLEAR=UNCD7;
-  UNCD7('1',UCN,SIDE,R,'ACT',T--ORD(T),P)  $= SUM(S$UC_ACT(UCN,SIDE,R,T,P,S),1);
-  UNCD7('2',UCN,SIDE,R,'CAP',T--ORD(T),P)  $= UC_CAP(UCN,SIDE,R,T,P);
-  UNCD7('3',UCN,SIDE,R,'NCAP',T--ORD(T),P) $= UC_NCAP(UCN,SIDE,R,T,P);
-  LOOP(UNCD7(J,UCN,SIDE,R,UC_GRPTYPE,T,P),UC_GMAP_P(UC_ON(R,UCN),UC_GRPTYPE,P)=YES);
+  UC_JMAP('2',UCN,SIDE,R,T--ORD(T),P,'ACT')$UC_ON(R,UCN)  $= SUM(S$UC_ACT(UCN,SIDE,R,T,P,S),1);
+  UC_JMAP('3',UCN,SIDE,R,T--ORD(T),P,'CAP')$UC_ON(R,UCN)  $= UC_CAP(UCN,SIDE,R,T,P);
+  UC_JMAP('4',UCN,SIDE,R,T--ORD(T),P,'NCAP')$UC_ON(R,UCN) $= UC_NCAP(UCN,SIDE,R,T,P);
+  OPTION UC_GMAP_P < UC_JMAP;
 
 * Mark those processes that have UC_CAP / COMXXX to also have VAR_CAP / VAR_COMXXX
   LOOP(UC_GMAP_P(R,UCN,'CAP',P),TRACKP(R,P)=YES);
   RTP_VARP(RTP(R,T,P))$TRACKP(R,P) = YES;
-  OPTION CLEAR=TRACKP,CLEAR=RXX;
+  OPTION CLEAR=TRACKP,CLEAR=RXX,CLEAR=UC_JMAP;
   UC_ON(R,UCN) $= SUM(UC_DYNBND(UCN,L),1);
   LOOP(UC_GMAP_C(UC_ON(R,UC_N),COM_VAR,C,UC_GRPTYPE),RXX(R,COM_VAR,C)=YES);
   RHS_COMPRD(RTCS_VARC(R,T,C,S))$RXX(R,'PRD',C) = YES;
@@ -1324,16 +1319,25 @@ IF (REFUNIT(R) = 1,
                                 (1/CONVERT(OPR,'WCV'))$(BL_UNIT(R,BLE,SPE) = 2) +
                                 1$(BL_UNIT(R,BLE,SPE) = 1);
   RU_FEQ(R,OPR,T) = 1;
-);
-);
+));
 RU_FEQ(R,OPR,T)$(NOT RU_FEQ(R,OPR,T)) = 1;
 
+
 *----------------------------------------------------------------
-* Call reduction algorithm
+* Call reduction algorithm and determine vintaging for processes
 *----------------------------------------------------------------
-$ BATINCLUDE pp_reduce.red
-  RTPCS_VARF(RTPC(RTP_VARA(R,T,P),C),S)$((NOT RTPCS_OUT(R,T,P,C,S))$RPCS_VAR(R,P,C,S)) = YES;
-  OPTION CLEAR=R_UC,CLEAR=RTPCS_OUT;
+   OPTION RVP < RTP_CPTYR;
+   RTP_VARA(R,T,P)$(NOT RVP(R,T,P)) = NO;
+$  BATINCLUDE pp_reduce.red
+   RTPCS_VARF(RTPC(RTP_VARA(R,T,P),C),S)$((NOT RTPCS_OUT(R,T,P,C,S))$RPCS_VAR(R,P,C,S)) = YES;
+
+*  vintaging period control such that v=t if no vintaging, otherwise = CPT periods 
+*  always variables within availability of process (vintaging should imply capacity)
+*  PRC_VINT(PRC_VINT(RP)) = PRC_CAP(RP);
+   RTP_VINTYR(RTP_CPTYR(R,V,T,P))$PRC_VINT(R,P)= YES;
+   RTP_VINTYR(R,T,T,P)$((NOT PRC_VINT(R,P))*RTP(R,T,P)$RVP(R,T,P)) = YES;
+
+   OPTION CLEAR=R_UC,CLEAR=RVP,CLEAR=RTPCS_OUT;
 *----------------------------------------------------------------
 * MACRO
 *----------------------------------------------------------------

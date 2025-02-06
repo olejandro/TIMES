@@ -1,7 +1,7 @@
 *++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-* Copyright (C) 2000-2023 Energy Technology Systems Analysis Programme (ETSAP)
+* Copyright (C) 2000-2024 Energy Technology Systems Analysis Programme (ETSAP)
 * This file is part of the IEA-ETSAP TIMES model generator, licensed
-* under the GNU General Public License v3.0 (see file LICENSE.txt).
+* under the GNU General Public License v3.0 (see file NOTICE-GPLv3.txt).
 *=============================================================================*
 * INITMTY.MOD has all the EMPTY declarations for system & user data           *
 *  %1..%6 - File extensions of code extensions to be included                 *
@@ -13,16 +13,15 @@
 *   - consider PRC_MAP(PRC_GRP,PRC_SUBGRP,PRC) where PRC_SUBGRP = PRC_RSOURC + any user-provided sub-groupings
 *   - SOW/COM/PRC/CUR master sets (merged) == entire list, that is not REG
 *   - lists (eg, DEM_SECT) for _MAP sets not REG (but individual mappings are)
-*   - HAVE THE USER *.SET/DD files OMIT the declarations to ease maintenance changes
+*   - HAVE THE USER *.DD files OMIT the declarations to ease maintenance changes
 *-----------------------------------------------------------------------------
 * Version control
-$IF NOT FUNTYPE rpower $ABORT TIMES Version 4.0 and above Requires GAMS 22.0 or above!
-$IF NOT FUNTYPE gamsversion $GOTO DECL
+$IF NOT FUNTYPE gamsversion $ABORT TIMES Version 4.8 and above Requires GAMS 23.0 or above!
 $IF gamsversion 149 $SETGLOBAL G2X6 Yes
 $IF gamsversion 230 $SETGLOBAL OBMAC YES
 $IF gamsversion 236 $SETGLOBAL G2X6 YES
-$LABEL DECL
 $ONEMPTY
+
 *-----------------------------------------------------------------------------
 * SET SECTION
 *-----------------------------------------------------------------------------
@@ -68,7 +67,7 @@ $ONEMPTY
   SET PRC_CAPUNT(REG,PRC,CG,UNITS_CAP) 'Unit of capacity'                //;
   SET PRC_CG(R,PRC,COM_GRP)            'Commodity groups for a process'  //;
   SET PRC_DESC(R,P)                    'Process descriptions by region'  //;
-  SET PRC_FOFF(REG,PRC,COM,ALL_TS,*,*) 'Periods/timeslices for which flow is not possible' //;
+  SET PRC_FOFF(REG,PRC,COM,ALL_TS,*,*) 'Periods/timeslices for which flow is not possible'//;
   SET PRC_MAP(REG,PRC_GRP,PRC)         'Grouping of processes to nature' //;
   SET PRC_NOFF(REG,PRC,*,*)            'Periods for which new capacity can NOT be built' //;
   SET PRC_RMAP(REG,PRC_RSOURC,PRC)     'Grouping of XTRACT processes'    //;
@@ -76,7 +75,7 @@ $ONEMPTY
   SET PRC_TS(ALL_REG,PRC,ALL_TS)       'Timeslices for a process'        //;
   SET PRC_TSL(REG,PRC,TSLVL)           'Timeslice level for a process'   //;
   SET PRC_VINT(REG,PRC)                'Process is to be vintaged'       //;
-  SET PRC_DSCNCAP(R,P)                 'Processes with discrete capacity additions';
+  SET PRC_DSCNCAP(R,P)                 'Process with discrete capacity additions';
   SET PRC_RCAP(REG,PRC)                'Process with early retirement';
   SET PRC_SIMV(REG,PRC)                'Process is to be vintage-simulated';
 
@@ -214,7 +213,7 @@ $IF NOT SET PGPRIM $SETGLOBAL PGPRIM "'ACT'"
 
 * capacity installed
   PARAMETER NCAP_START(REG,PRC)                 'Start year for new investments' //;
-  PARAMETER NCAP_SEMI(R,ALLYEAR,P)              'Semi-continuous capacity, lower bound';
+  PARAMETER NCAP_SEMI(R,ALLYEAR,P)              'Semi-continuous capacity, lower bound' //;
   PARAMETER CAP_BND(REG,ALLYEAR,PRC,BD)         'Bound on total installed capacity in a period' //;
 
 * general commodities
@@ -334,7 +333,7 @@ $IF NOT SET PGPRIM $SETGLOBAL PGPRIM "'ACT'"
     UC_CUMFLO(UC_N,ALL_REG,PRC,COM,ITEM,ITEM)       'Multiplier of cumulative process flow variable' //
     UC_CUMCOM(UC_N,ALL_REG,COM_VAR,COM,ITEM,ITEM)   'Multiplier of cumulative commodity variable' //
     UC_UCN(UC_N,SIDE,ALL_R,ALLYEAR,UC_N)            'Multiplier of user constraint variable' //
-    UC_TIME(UC_N,ALL_REG,ALLYEAR)                   'Multiplier of time in model periods (years)' //;
+    UC_TIME(UC_N,ALL_R,ALLYEAR)                     'Multiplier of time in model periods (years)' //;
 
 *-----------------------------------------------------------------------------
 * Extensions & System scalars
@@ -413,7 +412,7 @@ $ SETGLOBAL DFLBL '0'
 * CONTROL section
 *------------------------------------------------------------------------------
 $ SETGLOBAL GDXPATH
-$ IFI EXIST gamssave\nul $SETGLOBAL GDXPATH 'gamssave\'
+$ IFI EXIST gamssave\nul $SETGLOBAL GDXPATH 'gamssave/'
 $ SETGLOBAL SYSPREFIX '' SETGLOBAL PRF FILE=1
 *------------------------------------------------------------------------------
 * Alternative objective controls
@@ -455,9 +454,10 @@ $IF %PGPRIM%==ACT  $SETGLOBAL RETIRE 'YES' SETGLOBAL DSCAUTO Yes
 $IFI %DSC%==YES    $KILL RCAP_BLK
 
 * Initialize list of standard extensions to be loaded
-$SETGLOBAL EXTEND
+$SET VDA 'YES' SETGLOBAL EXTEND
 
 * Add recognized extensions if defined
+$IFI '%ECB%'==YES   $SETGLOBAL EXTEND '%EXTEND% ECB'
 $IFI '%MACRO%'==CSA $SETGLOBAL EXTEND '%EXTEND% MSA'
 $IFI '%MACRO%'==MSA $SETGLOBAL EXTEND '%EXTEND% MSA'
 $IFI '%MACRO%'==MLF $SETGLOBAL EXTEND '%EXTEND% MLF'
@@ -472,7 +472,7 @@ $IFI '%MCA%' == YES $SETGLOBAL EXTEND '%EXTEND% MCA'
 $SETGLOBAL EXTEND %EXTEND% %1 %2 %3 %4 %5 %6
 
 * Load all extension declarations
-$IF NOT '%EXTEND%' == '' $BATINCLUDE main_ext.mod initmty %EXTEND%
+$BATINCLUDE main_ext.mod initmty %EXTEND%
 
 $IF ERRORFREE
 $BATINCLUDE err_stat.mod '$IF NOT ERRORFREE' ABORT 'Errors in Compile' 'VARIABLE OBJz' ': Required _TIMES.g00 Restart File Missing'
@@ -487,7 +487,7 @@ $IF %MACRO%==YES $INCLUDE initmty.tm
 * Load data from GDX if DATAGDX set and %RUN_NAME%~DATA exists
 $ IF NOT SET DATAGDX $GOTO RUN
 $ IF NOT %G2X6%==YES $GOTO RUN
-$ IF NOT SET RUN_NAME $SETNAMES %SYSTEM.INCPARENT% . RUN_NAME .
+$ IF NOT SET RUN_NAME $SETNAMES "%SYSTEM.INCPARENT%" . RUN_NAME .
 $ IF NOT EXIST %RUN_NAME%~data.gdx $GOTO RUN
 $ hiddencall gdxdump %RUN_NAME%~data.gdx NODATA > _dd_.dmp
 $ hiddencall sed "/^\(Alias\|[^($]*(\*) Alias\|[^$].*empty *$\)/{N;d;}; /^\([^$].*$\|$\)/d; s/\$LOAD.. /\$LOAD /I" _dd_.dmp > _dd_.dd

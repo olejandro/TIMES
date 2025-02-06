@@ -1,7 +1,7 @@
 *++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-* Copyright (C) 2000-2022 Energy Technology Systems Analysis Programme (ETSAP)
+* Copyright (C) 2000-2024 Energy Technology Systems Analysis Programme (ETSAP)
 * This file is part of the IEA-ETSAP TIMES model generator, licensed
-* under the GNU General Public License v3.0 (see file LICENSE.txt).
+* under the GNU General Public License v3.0 (see file NOTICE-GPLv3.txt).
 *=============================================================================*
 * PREPPM.MOD oversees all the enhanced interpolation activities
 *   %1 - mod or v# for the source code to be used
@@ -167,7 +167,7 @@ $BATINCLUDE fillparm STG_SIFT R 'P,C,S' ",'0','0','0'" T 'RTP(R,T,P)' 'GE 0'
 $BATINCLUDE fillparm UC_ACT 'UC_N,SIDE,R' 'P,TS' ",'0','0'" T 'RTP(R,T,P)' 'GE 0'
 $BATINCLUDE fillparm UC_CAP 'UC_N,SIDE,R' P ",'0','0','0'" T 1 'GE 0'
 $BATINCLUDE fillparm UC_COM 'UC_N,COM_VAR,SIDE,R' 'C,TS,UC_GRPTYPE' "" T 1 'GE 0'
-$BATINCLUDE fillparm UC_FLO 'UC_N,SIDE,R' 'P,C,TS' ",'0'" T 1 'GE 0'
+$BATINCLUDE fillparm UC_FLO 'UC_N,SIDE,R' 'P,C,TS' ",'0'" T 1 'GE 0' X_UZRPCS
 $BATINCLUDE fillparm UC_IRE 'UC_N,SIDE,R' 'P,C,TS,IE' "" T 'RTP(R,T,P)' 'GE 0'
 $BATINCLUDE fillparm UC_NCAP 'UC_N,SIDE,R' P ",'0','0','0'" T 'RTP(R,T,P)' 'GE 0'
 $BATINCLUDE fillparm UC_UCN 'UC_N,SIDE,R' UCN ",'0','0','0'" T 1 'GE 0'

@@ -2672,3 +2672,370 @@ initmty.stc   : (4)
 stages.stc    : (2)
 sensis.stc    : (2)
 solputta.ans  : (4)
+
+-----------------------------------------------------------------------------------------
+TIMES Version 4.7.0
+-----------------------------------------------------------------------------------------
+Date: 25-Feb-2023 [AL]: Major release
+1) Fixed bug related to auxiliary STS storage flows introduced in v4.6.9
+2) Fixed backwards compatibility workaround using COM_TYPEs as commodities not in topology
+3) Added experimental extension implementing logit market share mechanism
+4) Fixed loose ends in the levelization enhancement in v4.6.9
+
+Modified files: (reason)
+initsys.mod   : Increased version number to 4.7.0
+initmty.mod   : (3)
+ppmain.mod    : (4)
+pp_lvlfc.mod  : (4)
+coef_ptr.mod  : (1)
+sol_flo.red   : (4)
+initmty.vda   : (3)
+dynslite.vda  : (4)
+pp_actef.vda  : (2)
+pp_prelv.vda  : (4)
+mod_ext.vda   : (3)
+mod_vars.tm   : (3)
+
+Added files...: (3)
+ppm_ext.ecb
+equ_ext.ecb
+rpt_ext.ecb
+
+-----------------------------------------------------------------------------------------
+TIMES Version 4.7.1
+-----------------------------------------------------------------------------------------
+Date: 9-Apr-2023 [AL]: Maintenance release
+1) Added option for preventing cascaded forced retrofits
+2) Fixed some loose ends in the recent logit market sharing
+3) Added QA check against missing base prices under TIMESED
+
+Modified files: (reason)
+initsys.mod   : Increased version number to 4.7.1
+setglobs.gms  : (3)
+ppmain.mod    : (1)
+readbprice.mod: (3)
+eqdeclr.mod   : (1)
+pp_qack.mod   : (3)
+prepret.dsc   : (1)
+ppm_ext.ecb   : (2)
+rpt_ext.ecb   : (2)
+rpt_ext.mlf   : (2)
+recurrin.stc  : (1)
+
+-----------------------------------------------------------------------------------------
+TIMES Version 4.7.2
+-----------------------------------------------------------------------------------------
+Date: 9-Jun-2023 [AL]: Maintenance release
+1) Added support for non-vintaged ACT_FLO variant
+2) Added reporting of first pass LEC under the ECB extension
+
+Modified files: (reason)
+initsys.mod   : Increased version number to 4.7.2
+setglobs.gms  : (1)
+pp_lvlff.mod  : (1)
+prep_ext.vda  : (1)
+pp_prelv.vda  : (1)
+ppm_ext.ecb   : (2)
+rpt_ext.ecb   : (2)
+
+-----------------------------------------------------------------------------------------
+TIMES Version 4.7.3
+-----------------------------------------------------------------------------------------
+Date: 3-Jul-2023 [AL]: Maintenance release
+1) Fixed bug introduced when using S_FLO_FUNC under stochastic mode
+2) Loosened default lower bounds VAR_CLITOT
+
+Modified files: (reason)
+initsys.mod   : Increased version number to 4.7.3
+setglobs.gms  : (1)
+coef_obj.mod  : (1)
+mod_vars.cli  : (2)
+
+-----------------------------------------------------------------------------------------
+TIMES Version 4.7.4
+-----------------------------------------------------------------------------------------
+Date: 13-Oct-2023 [AL]: Maintenance release
+1) Fixed bug related to zero new capacities when deriving logit market shares
+2) Fixed bug related to zero SHAPE values for NCAP_CPX
+3) Cosmetic improvements
+
+Modified files: (reason)
+initsys.mod   : Increased version number to 4.7.4
+ppmain.mod    : (3)
+coef_shp.mod  : (2)
+eqobjvar.mod  : (3)
+eqobjels.mod  : (3)
+eqobjvar.rpt  : (3)
+equ_ext.abs   : (3)
+rpt_ext.ecb   : (1)
+
+-----------------------------------------------------------------------------------------
+TIMES Version 4.7.5
+-----------------------------------------------------------------------------------------
+Date: 28-Oct-2023 [AL]: Maintenance release
+1) Fixed divide by zero error in certain condition of PASTI with ILED within active horizon
+2) Added support for NCAP_ICOM for past investments
+3) Cosmetic improvements
+
+Modified files: (reason)
+initsys.mod   : Increased version number to 4.7.5
+ppmain.mod    : (1)
+cal_cap.mod   : (2)
+bndmain.mod   : (3)
+bnd_stg.mod   : (3)
+initmty.vda   : (3)
+eqactups.vda  : (3)
+
+-----------------------------------------------------------------------------------------
+TIMES Version 4.7.6
+-----------------------------------------------------------------------------------------
+Date: 15-Nov-2023 [AL]: Maintenance release
+1) Fixed bug in ECB extension when defining multiple markets with Logit choices
+2) Added stochastic support for flexible STS storage option (STSFLX)
+3) Cosmetic improvements
+
+Modified files: (reason)
+initsys.mod   : Increased version number to 4.7.6
+maindrv.mod   : (3)
+setglobs.gms  : (3)
+eqstgtss.mod  : (2)
+eqdamage.mod  : (3)
+preshape.gms  : (3)
+solve.stp     : (3)
+prepret.dsc   : (3)
+recurrin.stc  : (3)
+ppm_ext.ecb   : (1)
+
+-----------------------------------------------------------------------------------------
+TIMES Version 4.7.7
+-----------------------------------------------------------------------------------------
+Date: 27-Dec-2023 [AL]: Maintenance release
+1) Fixed divide by zero issue in the ECB extension
+2) Performance improvement for EQ_PEAK in large models
+3) Added optional output attribute for process units
+4) Cosmetic improvements
+
+Modified files: (reason)
+initsys.mod   : Increased version number to 4.7.7
+initmty.mod   : (4)
+units.def     : (3)
+setglobs.gms  : (2)
+pp_lvlpk.mod  : (2)
+pp_shapr.mod  : (2)
+pp_reduce.red : (2)
+eqpeak.mod    : (2)
+cal_ire.mod   : (2)
+err_stat.mod  : (4)
+rpt_ext.ecb   : (1)
+solsetv.v3    : (3)
+
+-----------------------------------------------------------------------------------------
+TIMES Version 4.7.8
+-----------------------------------------------------------------------------------------
+Date: 19-Jan-2024 [AL]: Maintenance QA release
+1) Added QA checks against invalid attributes
+2) Improved topology check for auxiliary IRE flows
+3) Small performance/cosmetic improvements
+
+Modified files: (reason)
+initsys.mod   : Increased version number to 4.7.8
+ppmain.mod    : (1),(2)
+setglobs.gms  : (1)
+pp_lvlpk.mod  : (3)
+eqpeak.mod    : (3)
+cal_fflo.mod  : (3)
+pp_qack.mod   : (1)
+init_ext.vda  : (2)
+pp_prelv.vda  : (3)
+
+-----------------------------------------------------------------------------------------
+TIMES Version 4.7.9
+-----------------------------------------------------------------------------------------
+Date: 25-Feb-2024 [AL]: Maintenance QA release
+1) Added support for shaping NCAP_OCOM based on COEF_CPT
+2) Fixed performance bug within IRE_FLO levelizing
+3) Improved QA checks for ACT_EFF default shadow group
+4) Cosmetic improvements
+
+Modified files: (reason)
+initsys.mod   : Increased version number to 4.7.9
+ppmain.mod    : (1)
+setglobs.gms  : (1)
+preshape.gms  : (4)
+pp_lvlif.mod  : (2)
+pp_reduce.red : (4)
+coef_nio.mod  : (1)
+coef_shp.mod  : (1)
+ppm_ext.vda   : (3)
+
+-----------------------------------------------------------------------------------------
+TIMES Version 4.8.0
+-----------------------------------------------------------------------------------------
+Date: 28-Mar-2024 [AL]: Major release
+1) Improved support for shaping NCAP_OCOM based on COEF_CPT
+2) Performance improvements, in particular related to UC and dispatching constraints (adapted from Courtesy of Justine Broihan)
+3) Other cosmetic and performance improvements
+
+initsys.mod   : Increased version number to 4.8.0
+setglobs.gms  : (3)
+ppmain.mod    : (3)
+preppm.mod    : (3)
+timslice.mod  : (2)
+coef_shp.mod  : (1)
+eqdeclr.mod   : (2),(3)
+eqmain.mod    : (2)
+equcwrap.mod  : (2),(3)
+cal_fflo.mod  : (3)
+pp_qack.mod   : (3)
+uc_com.mod    : (3)
+uc_flo.mod    : (3)
+solve.stp     : (3)
+rptlite.rpt   : (3)
+cost_ann.rpt  : (2)
+par_uc.rpt    : (3)
+cal_red.red   : (2)
+sol_flo.red   : (2)
+cal_nored.red : (3)
+ppm_ext.vda   : (2),(3)
+pp_actef.vda  : (3)
+eqlducs.vda   : (3)
+eqactups.vda  : (2)
+eqashar.vda   : (3)
+dynslite.vda  : (3)
+equ_ext.abs   : (3)
+recurrin.stc  : (3)
+
+-----------------------------------------------------------------------------------------
+TIMES Version 4.8.1
+-----------------------------------------------------------------------------------------
+Date: 20-Jun-2024 [AL]: Minor release
+1) Additional performance improvements inspired by the ETSAP code review project
+2) Small enhancement in the model reduction facility
+3) Other subtle improvements
+
+initsys.mod   : Increased version number to 4.8.1
+initmty.mod   : (3)
+setglobs.gms  : (1),(2)
+ppmain.mod    : (2)
+pp_lvlus.mod  : (1)
+pp_chp.mod    : (2)
+pp_reduce.red : (2)
+coef_ptr.mod  : (1)
+pp_qack.mod   : (1)
+eqmain.mod    : (1)
+eqpeak.mod    : (1)
+eqxbnd.mod    : (3)
+solve.stp     : (3)
+rptmain.rpt   : (3)
+rptmisc.rpt   : (3)
+init_ext.vda  : (1)
+pp_prelv.vda  : (2)
+ppm_ext.vda   : (1)
+pp_actef.vda  : (1)
+coef_ext.vda  : (3)
+eqactups.vda  : (1)
+eqcaflac.vda  : (1)
+equ_ext.abs   : (1)
+solsetv.v3    : (3)
+
+-----------------------------------------------------------------------------------------
+TIMES Version 4.8.2
+-----------------------------------------------------------------------------------------
+Date: 19-Aug-2024 [AL]: Minor release
+1) Small performance improvements inspired by the ETSAP code review project
+2) Added IE option -13 for flushing out time series (eg. UCs)
+3) Other subtle improvements
+
+initsys.mod   : Increased version number to 4.8.2
+initmty.mod   : (3)
+setglobs.gms  : (1)
+ppmain.mod    : (3)
+prepparm.gms  : (2)
+pp_lvlpk.mod  : (1)
+eqmain.mod    : (2)
+cal_stgn.mod  : (1)
+cal_ire.mod   : (1)
+cal_fflo.mod  : (1)
+eqflomrk.mod  : (1)
+eqire.mod     : (1)
+eqirebnd.mod  : (1)
+eqxbnd.mod    : (1)
+bnd_ucw.mod   : (2)
+pp_qack.mod   : (1)
+coef_ext.vda  : (2)
+solsetv.v3    : (1)
+prepret.dsc   : (3)
+
+-----------------------------------------------------------------------------------------
+TIMES Version 4.8.3
+-----------------------------------------------------------------------------------------
+Date: 7-Sep-2024 [AL]: Maintenance release
+1) Fixed bug in the ABS extension introduced in v469 related to EQ_BS24
+2) Fixed bug in the ABS extension related to past capacities in EQ_BS09
+3) Fixed issue with spaces in model folder names
+
+initsys.mod   : Increased version number to 4.8.3
+initmty.mod   : (3)
+main_ext.mod  : (3)
+init_ext.abs  : (2)
+prep_ext.abs  : (2)
+coef_ext.abs  : (2)
+equ_ext.abs   : (1),(2)
+
+-----------------------------------------------------------------------------------------
+TIMES Version 4.8.4
+-----------------------------------------------------------------------------------------
+Date: 20-Dec-2024 [AL]: Minor release
+1) Added support for grid modeling with PTDF formulations
+2) Added support for gas grid modeling with Weymouth equations
+3) Other subtle improvements
+
+Modified files: (reason)
+initsys.mod   : Increased version number to 4.8.4
+initmty.mod   : (1)
+maplists.def  : (2)
+ppmain.mod    : (2)
+pp_qack.mod   : (3)
+initmty.vda   : (1),(2)
+solve.stp     : (3)
+init_ext.vda  : (2)
+prep_ext.vda  : (1)
+coef_ext.vda  : (2)
+powerflo.vda  : (1),(2)
+mod_ext.vda   : (1),(2)
+init_ext.dsc  : (3)
+recurrin.stc  : (1)
+
+Added file:
+gasgrids.vda  : (2)
+
+-----------------------------------------------------------------------------------------
+TIMES Version 4.8.5
+-----------------------------------------------------------------------------------------
+Date: 31-Dec-2024 [AL]: Maintenance release
+1) Fixed runtime issues turned up in previous version
+2) Cosmetic MIP handling improvement
+
+Modified files: (reason)
+initsys.mod   : Increased version number to 4.8.5
+powerflo.vda  : (1)
+prep_ext.dsc  : (2)
+equ_ext.dsc   : (2)
+mod_ext.dsc   : (2)
+ppm_ext.dsc   : (2)
+_times.g00    : (1)
+
+-----------------------------------------------------------------------------------------
+TIMES Version 4.8.6
+-----------------------------------------------------------------------------------------
+Date: 25-Jan-2025 [AL]: Maintenance release
+1) Fixed bug related to zero SHAPE with NCAP_AFX
+2) Fixed bug related to retiring capacities with zero CAP_BND
+3) Added option for including PASTI within horizon in Cap_New reporting
+
+Modified files: (reason)
+initsys.mod   : Increased version number to 4.8.6
+ppmain.mod    : (2)
+coef_cpt.mod  : (1)
+pp_shapr.mod  : (1)
+rpt_obj.rpt   : (3)

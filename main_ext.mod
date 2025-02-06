@@ -1,7 +1,7 @@
 *++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-* Copyright (C) 2000-2020 Energy Technology Systems Analysis Programme (ETSAP)
+* Copyright (C) 2000-2024 Energy Technology Systems Analysis Programme (ETSAP)
 * This file is part of the IEA-ETSAP TIMES model generator, licensed
-* under the GNU General Public License v3.0 (see file LICENSE.txt).
+* under the GNU General Public License v3.0 (see file NOTICE-GPLv3.txt).
 *=============================================================================*
 * MAIN_EXT.mod is the extension driver
 *=============================================================================*
@@ -11,7 +11,7 @@
 *          This would include the reporting extensions for ETL and two custom 
 *          reporting routines rpt_ext.RP1 and rpt_ext.RP2
 *-----------------------------------------------------------------------------
-$SETNAMES %SYSTEM.INCPARENT% . TMP .
+$SETNAMES "%SYSTEM.INCPARENT%" . TMP .
 $SETLOCAL WHCALL %1
 $LABEL MORE
 $SHIFT

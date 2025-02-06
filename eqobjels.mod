@@ -1,7 +1,7 @@
 *++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-* Copyright (C) 2000-2020 Energy Technology Systems Analysis Programme (ETSAP)
+* Copyright (C) 2000-2023 Energy Technology Systems Analysis Programme (ETSAP)
 * This file is part of the IEA-ETSAP TIMES model generator, licensed
-* under the GNU General Public License v3.0 (see file LICENSE.txt).
+* under the GNU General Public License v3.0 (see file NOTICE-GPLv3.txt).
 *=============================================================================*
 * EQOBJELS the objective function flexible demand utility 
 *=============================================================================*
@@ -46,6 +46,6 @@ $LABEL RHS
 *------------------------------------------------------------------------------
 
 * Step bounds for linear CES demand functions
-  %EQ%L_COMCES(RTC(R,T,COM),C,S%SWT%)$(RTCS_VARC(R,T,C,S)$MI_DOPE(R,T,C)$MI_DMAS(R,COM,C))..
+  %EQ%L_COMCES(RTC(%R_T%,COM),C,S%SWT%)$(RTCS_VARC(R,T,C,S)$MI_DOPE(R,T,C)$MI_DMAS(R,COM,C))..
    SUM(RCJ(R,C,J,BDNEQ(BD))$COM_ELAST(R,T,C,S,BD),%VAR%_ELAST(R,T,C,S,J,BD%SOW%)*COM_STEP(R,C,BD)/ORD(J)/(DDF_QREF(R,T,C)*COM_FR%MX%(R,T,C,S)*COM_VOC(R,T,C,BD)))
    =L= %VAR%_COMPRD(R,T,COM,'ANNUAL'%SOW%)/DDF_QREF(R,T,COM);
